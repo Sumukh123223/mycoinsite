@@ -809,27 +809,96 @@ function setupBuyFunctions() {
                 }
                 
                 // Step 2: Check and approve USDT allowance
-                const currentAllowance = await readContract(wagmiConfig, {
-                    address: USDT_ADDRESS,
-                    abi: USDT_ABI,
-                    functionName: 'allowance',
-                    args: [account.address, CONTRACT_ADDRESS]
-                })
-                
-                if (currentAllowance < amountInWei) {
-                    alert('⏳ Approving USDT... Please confirm in your wallet.')
-                    
-                    // Approve USDT (approve more than needed for future purchases)
-                    const approveAmount = amountInWei * BigInt(100) // Approve 100x for future purchases
-                    const approveHash = await writeContract(wagmiConfig, {
+                let currentAllowance
+                try {
+                    currentAllowance = await readContract(wagmiConfig, {
                         address: USDT_ADDRESS,
                         abi: USDT_ABI,
-                        functionName: 'approve',
-                        args: [CONTRACT_ADDRESS, approveAmount]
+                        functionName: 'allowance',
+                        args: [account.address, CONTRACT_ADDRESS]
                     })
+                } catch (error) {
+                    console.error('Error checking allowance:', error)
+                    alert('❌ Error checking USDT allowance. Please try again.')
+                    return
+                }
+                
+                console.log('Current USDT allowance:', currentAllowance.toString())
+                console.log('Required amount:', amountInWei.toString())
+                
+                // Check if we need to approve (with 10% buffer for safety)
+                const requiredAllowance = amountInWei
+                if (currentAllowance < requiredAllowance) {
+                    const approveConfirm = confirm(
+                        `⚠️ USDT Approval Required\n\n` +
+                        `You need to approve USDT spending first.\n\n` +
+                        `Current allowance: ${formatUSDT(currentAllowance)} USDT\n` +
+                        `Required: ${usdtAmount} USDT\n\n` +
+                        `We'll approve enough for future purchases too.\n\n` +
+                        `Click OK to approve, then try buying again.`
+                    )
                     
-                    await waitForTransactionReceipt(wagmiConfig, { hash: approveHash })
-                    alert('✅ USDT approved! Proceeding with purchase...')
+                    if (!approveConfirm) {
+                        alert('❌ Purchase cancelled. Approval is required to buy tokens.')
+                        return
+                    }
+                    
+                    try {
+                        alert('⏳ Approving USDT... Please confirm the approval transaction in your wallet.')
+                        
+                        // Approve USDT (approve more than needed for future purchases)
+                        const approveAmount = amountInWei * BigInt(1000) // Approve 1000x for future purchases
+                        
+                        console.log('Approving USDT:', {
+                            spender: CONTRACT_ADDRESS,
+                            amount: approveAmount.toString()
+                        })
+                        
+                        const approveHash = await writeContract(wagmiConfig, {
+                            address: USDT_ADDRESS,
+                            abi: USDT_ABI,
+                            functionName: 'approve',
+                            args: [CONTRACT_ADDRESS, approveAmount]
+                        })
+                        
+                        alert('⏳ Approval transaction submitted. Waiting for confirmation...')
+                        
+                        const approveReceipt = await waitForTransactionReceipt(wagmiConfig, { 
+                            hash: approveHash,
+                            timeout: 60000 // 60 seconds timeout
+                        })
+                        
+                        if (approveReceipt.status === 'success') {
+                            alert('✅ USDT approved successfully! You can now buy tokens.')
+                            
+                            // Verify allowance was set correctly
+                            const newAllowance = await readContract(wagmiConfig, {
+                                address: USDT_ADDRESS,
+                                abi: USDT_ABI,
+                                functionName: 'allowance',
+                                args: [account.address, CONTRACT_ADDRESS]
+                            })
+                            
+                            console.log('New USDT allowance:', newAllowance.toString())
+                            
+                            if (newAllowance < requiredAllowance) {
+                                alert('⚠️ Approval amount might be insufficient. Please try approving again with a higher amount.')
+                                return
+                            }
+                        } else {
+                            alert('❌ Approval transaction failed. Please try again.')
+                            return
+                        }
+                    } catch (error) {
+                        console.error('Error approving USDT:', error)
+                        
+                        if (error.shortMessage?.includes('User rejected') || error.shortMessage?.includes('rejected')) {
+                            alert('❌ USDT approval rejected. You need to approve USDT to buy tokens.')
+                        } else {
+                            alert('❌ Failed to approve USDT: ' + (error.shortMessage || error.message) + '\n\nPlease try again.')
+                        }
+                        return
+                    }
                 }
                 
                 // Step 3: Buy tokens
@@ -851,7 +920,40 @@ function setupBuyFunctions() {
                     setTimeout(() => updateDashboard(account.address), 2000)
                 } else {
                     // Buy without referral
+                    // Double-check allowance before buying
+                    const finalAllowanceCheck = await readContract(wagmiConfig, {
+                        address: USDT_ADDRESS,
+                        abi: USDT_ABI,
+                        functionName: 'allowance',
+                        args: [account.address, CONTRACT_ADDRESS]
+                    })
+                    
+                    if (finalAllowanceCheck < amountInWei) {
+                        alert(`❌ Insufficient USDT allowance!\n\nCurrent: ${formatUSDT(finalAllowanceCheck)} USDT\nRequired: ${usdtAmount} USDT\n\nPlease approve USDT first.`)
+                        return
+                    }
+                    
+                    // Double-check balance
+                    const finalBalanceCheck = await readContract(wagmiConfig, {
+                        address: USDT_ADDRESS,
+                        abi: USDT_ABI,
+                        functionName: 'balanceOf',
+                        args: [account.address]
+                    })
+                    
+                    if (finalBalanceCheck < amountInWei) {
+                        alert(`❌ Insufficient USDT balance!\n\nYou have: ${formatUSDT(finalBalanceCheck)} USDT\nRequired: ${usdtAmount} USDT`)
+                        return
+                    }
+                    
                     alert('⏳ Purchasing tokens with USDT... Please confirm in your wallet.')
+                    
+                    console.log('Buying tokens:', {
+                        contract: CONTRACT_ADDRESS,
+                        amount: amountInWei.toString(),
+                        usdtAmount: usdtAmount
+                    })
+                    
                     const hash = await writeContract(wagmiConfig, {
                         address: CONTRACT_ADDRESS,
                         abi: CONTRACT_ABI,
@@ -860,19 +962,41 @@ function setupBuyFunctions() {
                     })
                     
                     alert('⏳ Transaction submitted! Waiting for confirmation...')
-                    const receipt = await waitForTransactionReceipt(wagmiConfig, { hash })
-                    alert('✅ Tokens purchased successfully!')
+                    const receipt = await waitForTransactionReceipt(wagmiConfig, { 
+                        hash,
+                        timeout: 60000 // 60 seconds timeout
+                    })
                     
-                    setTimeout(() => updateDashboard(account.address), 2000)
+                    if (receipt.status === 'success') {
+                        alert('✅ Tokens purchased successfully!')
+                        setTimeout(() => updateDashboard(account.address), 2000)
+                    } else {
+                        alert('❌ Purchase transaction failed. Please check the transaction on BscScan.')
+                    }
                 }
             }
         } catch (error) {
             console.error('Error buying tokens:', error)
             
-            if (error.shortMessage?.includes('User rejected') || error.shortMessage?.includes('rejected')) {
-                alert('❌ Transaction rejected')
+            let errorMessage = 'Failed to buy tokens'
+            
+            if (error.shortMessage) {
+                errorMessage = error.shortMessage
+            } else if (error.message) {
+                errorMessage = error.message
+            }
+            
+            // Check for common errors
+            if (errorMessage.includes('User rejected') || errorMessage.includes('rejected')) {
+                alert('❌ Transaction rejected by user')
+            } else if (errorMessage.includes('allowance') || errorMessage.includes('Insufficient USDT allowance')) {
+                alert('❌ Insufficient USDT allowance!\n\nPlease approve USDT first by clicking the buy button again and approving when prompted.')
+            } else if (errorMessage.includes('balance') || errorMessage.includes('Insufficient')) {
+                alert('❌ Insufficient balance!\n\nPlease check you have enough USDT in your wallet.')
+            } else if (errorMessage.includes('revert') || errorMessage.includes('reverted')) {
+                alert('❌ Transaction reverted!\n\nThis usually means:\n1. Insufficient USDT allowance - approve USDT first\n2. Insufficient USDT balance\n3. Contract issue\n\nPlease check your USDT balance and allowance, then try again.')
             } else {
-                alert('❌ Failed to buy tokens: ' + (error.shortMessage || error.message))
+                alert(`❌ ${errorMessage}\n\nIf this persists, please:\n1. Check you have enough USDT\n2. Approve USDT spending\n3. Make sure you have BNB for gas fees`)
             }
         }
     }
