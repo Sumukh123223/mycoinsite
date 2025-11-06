@@ -466,7 +466,7 @@ contract CleanSpark {
         
         // Use low-level call - works with all ERC20 implementations
         // This handles tokens that may or may not return boolean
-        (bool success, bytes memory data) = address(usdtToken).call(
+        (bool success, ) = address(usdtToken).call(
             abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, address(this), usdtAmount)
         );
         
