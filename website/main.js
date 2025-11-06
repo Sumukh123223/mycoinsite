@@ -1,0 +1,83 @@
+// DipenMali - Official Reown AppKit Integration
+import { createAppKit } from '@reown/appkit'
+import { bsc } from '@reown/appkit/networks'
+import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
+
+// Your Project ID from Reown Cloud
+const projectId = 'bfc83000af18c81213a1bbde25397fbf'
+
+// Set up networks (BSC Mainnet)
+const networks = [bsc]
+
+// Configure Wagmi adapter
+const wagmiAdapter = new WagmiAdapter({
+  projectId,
+  networks
+})
+
+// Configure metadata
+const metadata = {
+  name: 'DipenMali',
+  description: 'DipenMali Rewards Platform with Auto Rewards',
+  url: window.location.origin,
+  icons: ['https://files.reown.com/reown-social-card.png'] // You can add your own icon later
+}
+
+// Create the modal
+export const modal = createAppKit({
+  adapters: [wagmiAdapter],
+  networks,
+  metadata,
+  projectId,
+  features: {
+    analytics: true // Optional
+  }
+})
+
+// Also get wagmiConfig for contract interactions
+export const wagmiConfig = wagmiAdapter.wagmiConfig
+
+// Make modal globally available for HTML
+window.openConnectModal = () => {
+    try {
+        modal.open()
+    } catch (error) {
+        console.error('Error opening modal:', error)
+        alert('Error connecting wallet. Please refresh the page.')
+    }
+}
+
+window.openNetworkModal = () => {
+    try {
+        modal.open({ view: 'Networks' })
+    } catch (error) {
+        console.error('Error opening network modal:', error)
+    }
+}
+
+// Also export as openWalletModal for compatibility
+window.openWalletModal = window.openConnectModal
+
+// Ensure function is available immediately (safety check)
+if (!window.openWalletModal) {
+    window.openWalletModal = () => {
+        if (modal && typeof modal.open === 'function') {
+            modal.open()
+        } else {
+            console.error('Modal not initialized yet')
+            setTimeout(() => {
+                if (modal && typeof modal.open === 'function') {
+                    modal.open()
+                } else {
+                    alert('Please wait for wallet connection to initialize...')
+                }
+            }, 500)
+        }
+    }
+}
+
+console.log('✅ Reown AppKit initialized successfully!')
+console.log('✅ openWalletModal function available:', typeof window.openWalletModal)
+
+
+
