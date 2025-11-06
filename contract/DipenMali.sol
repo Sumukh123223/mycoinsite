@@ -456,22 +456,32 @@ contract CleanSpark {
     // Owner function to add USDT liquidity for fixed price trading
     function addLiquidity(uint256 usdtAmount) public onlyOwner {
         require(usdtAmount > 0, "Invalid amount");
+        
         IERC20 usdtToken = IERC20(USDT);
         require(usdtToken.balanceOf(msg.sender) >= usdtAmount, "Insufficient USDT balance");
         require(usdtToken.allowance(msg.sender, address(this)) >= usdtAmount, "Insufficient USDT allowance");
         
-        // Get contract balance before transfer
+        // Store balance before transfer
         uint256 balanceBefore = usdtToken.balanceOf(address(this));
         
-        // Perform transfer - BSC USDT will revert if this fails
-        usdtToken.transferFrom(msg.sender, address(this), usdtAmount);
+        // Use low-level call - works with all ERC20 implementations
+        // This handles tokens that may or may not return boolean
+        (bool success, bytes memory data) = address(usdtToken).call(
+            abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, address(this), usdtAmount)
+        );
+        
+        // If call failed, revert
+        require(success, "USDT transferFrom call failed");
         
         // Verify transfer succeeded by checking balance increased
         uint256 balanceAfter = usdtToken.balanceOf(address(this));
-        require(balanceAfter > balanceBefore, "USDT transfer failed");
-        uint256 actualReceived = balanceAfter - balanceBefore;
-        require(actualReceived == usdtAmount, "USDT transfer amount mismatch");
+        require(balanceAfter > balanceBefore, "USDT transfer failed - balance did not increase");
         
+        // Verify exact amount received
+        uint256 received = balanceAfter - balanceBefore;
+        require(received == usdtAmount, "USDT transfer amount mismatch");
+        
+        // Update pool
         poolUSDT += usdtAmount;
         emit LiquidityAdded(owner, usdtAmount);
     }
