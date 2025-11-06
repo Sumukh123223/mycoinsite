@@ -317,14 +317,12 @@ contract DipenMali {
     // Owner function to add USDT liquidity for fixed price trading
     function addLiquidity() public payable onlyOwner {
         require(msg.value > 0, "Invalid amount");
-        require(msg.sender == owner, "Not owner");
         poolUSDT += msg.value;
         emit LiquidityAdded(owner, msg.value);
     }
     
     // Owner function to remove USDT liquidity (emergency only)
     function removeLiquidity(uint256 amount) public onlyOwner {
-        require(msg.sender == owner, "Not owner");
         require(amount > 0, "Invalid amount");
         require(poolUSDT >= amount, "Insufficient pool");
         poolUSDT -= amount;
