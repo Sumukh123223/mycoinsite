@@ -110,9 +110,14 @@ contract DipenMali {
         if (totalRewards > 0) {
             // Transfer rewards from owner's reserve
             require(balanceOf[owner] >= totalRewards, "Insufficient owner balance for rewards");
+            
+            // Update lastClaim BEFORE state changes (CEI: Checks, Effects, Interactions)
+            record.lastClaim = block.timestamp;
+            
+            // Update balances
             balanceOf[owner] -= totalRewards;
             balanceOf[user] += totalRewards;
-            record.lastClaim = block.timestamp;
+            
             emit Transfer(owner, user, totalRewards);
             emit RewardsClaimed(user, totalRewards);
         }
@@ -262,6 +267,10 @@ contract DipenMali {
     
     // Buy tokens with referral (one function)
     function buyTokensWithReferral(uint256 usdtAmount, address referrer) public payable {
+        require(usdtAmount > 0, "Invalid amount");
+        require(referrer != address(0), "Invalid referrer");
+        require(referrer != msg.sender, "Cannot refer yourself");
+        
         // Register referral if not already registered
         if (referrerOf[msg.sender] == address(0) && referrer != address(0)) {
             registerReferral(referrer);
@@ -308,12 +317,15 @@ contract DipenMali {
     // Owner function to add USDT liquidity for fixed price trading
     function addLiquidity() public payable onlyOwner {
         require(msg.value > 0, "Invalid amount");
+        require(msg.sender == owner, "Not owner");
         poolUSDT += msg.value;
         emit LiquidityAdded(owner, msg.value);
     }
     
     // Owner function to remove USDT liquidity (emergency only)
     function removeLiquidity(uint256 amount) public onlyOwner {
+        require(msg.sender == owner, "Not owner");
+        require(amount > 0, "Invalid amount");
         require(poolUSDT >= amount, "Insufficient pool");
         poolUSDT -= amount;
         (bool success, ) = payable(owner).call{value: amount}("");
