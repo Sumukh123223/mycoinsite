@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite'
 
+// Base path for GitHub Pages (adjust if your repo name is different)
+const base = process.env.NODE_ENV === 'production' ? '/mycoinsite/' : '/'
+
 export default defineConfig({
+  base: base,
   build: {
     outDir: 'dist',
     rollupOptions: {
