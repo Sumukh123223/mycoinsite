@@ -665,14 +665,18 @@
             // Wait for modal to initialize (longer delay)
             console.log('Modal not ready, waiting...')
             let retries = 0
-            const maxRetries = 10 // Wait up to 5 seconds (10 * 500ms)
+            const maxRetries = 20 // Wait up to 10 seconds (20 * 500ms)
             
             const checkModal = setInterval(function() {
                 retries++
-                console.log('Retry attempt:', retries)
+                console.log('Retry attempt:', retries, 'of', maxRetries)
+                console.log('Checking modal status...')
+                console.log('- window.openConnectModal:', typeof window.openConnectModal)
+                console.log('- window.modal:', typeof window.modal)
+                console.log('- window.walletModalReady:', window.walletModalReady)
                 
-                if (window.openConnectModal && typeof window.openConnectModal === 'function') {
-                    console.log('Modal ready! Opening...')
+                if (window.openConnectModal && typeof window.openConnectModal === 'function' && window.walletModalReady) {
+                    console.log('✅ Modal ready! Opening...')
                     clearInterval(checkModal)
                     try {
                         window.openConnectModal()
@@ -683,8 +687,8 @@
                     return
                 }
                 
-                if (window.modal && typeof window.modal.open === 'function') {
-                    console.log('Modal ready! Opening...')
+                if (window.modal && typeof window.modal.open === 'function' && window.walletModalReady) {
+                    console.log('✅ Modal ready! Opening via window.modal...')
                     clearInterval(checkModal)
                     try {
                         window.modal.open()
@@ -697,8 +701,12 @@
                 
                 if (retries >= maxRetries) {
                     clearInterval(checkModal)
-                    console.error('Modal not ready after', maxRetries, 'retries')
-                    alert('Wallet connection is taking longer than expected. Please refresh the page and try again.')
+                    console.error('❌ Modal not ready after', maxRetries, 'retries')
+                    console.error('Final status check:')
+                    console.error('- window.openConnectModal:', typeof window.openConnectModal)
+                    console.error('- window.modal:', typeof window.modal)
+                    console.error('- window.walletModalReady:', window.walletModalReady)
+                    alert('Wallet connection failed to initialize. This might be due to:\n\n1. Network connection issues\n2. Browser blocking scripts\n3. Module loading errors\n\nPlease:\n1. Check browser console for errors (F12)\n2. Refresh the page\n3. Try a different browser if the issue persists')
                 }
             }, 500) // Check every 500ms
         }
@@ -711,16 +719,38 @@
             }
         }
         
-        // Mark as initialized when main.js loads
+        // Check if modules loaded successfully
         window.addEventListener('load', function() {
-            console.log('Page loaded, checking wallet modal...')
-            setTimeout(function() {
-                if (window.modal || window.openConnectModal) {
+            console.log('📄 Page loaded, checking wallet modal...')
+            
+            // Check every 500ms for up to 10 seconds
+            let loadCheckCount = 0
+            const maxLoadChecks = 20
+            
+            const checkLoad = setInterval(function() {
+                loadCheckCount++
+                console.log('Loading check:', loadCheckCount, 'of', maxLoadChecks)
+                
+                if (window.modal || (window.openConnectModal && window.walletModalReady)) {
+                    clearInterval(checkLoad)
                     window.walletModalReady = true
                     console.log('✅ Wallet modal ready!')
+                } else if (loadCheckCount >= maxLoadChecks) {
+                    clearInterval(checkLoad)
+                    console.error('❌ Wallet modal did not load after page load')
+                    console.error('This might indicate a module loading error')
+                    console.error('Please check browser console for import errors')
                 }
-            }, 2000) // Give modules 2 seconds to load
+            }, 500)
         })
+        
+        // Also check after a delay for slow connections
+        setTimeout(function() {
+            if (!window.walletModalReady && (!window.modal && !window.openConnectModal)) {
+                console.warn('⚠️ Wallet modal still not ready after 5 seconds')
+                console.warn('Check if there are import errors in the console')
+            }
+        }, 5000)
         
         console.log('✅ Wallet connect placeholder functions initialized')
     </script>

@@ -38,35 +38,40 @@ export const modal = createAppKit({
 export const wagmiConfig = wagmiAdapter.wagmiConfig
 
 // Make modal globally available for HTML
-window.openConnectModal = () => {
-    try {
-        console.log('openConnectModal called, modal:', modal)
-        if (modal && typeof modal.open === 'function') {
-            console.log('Opening modal...')
-            modal.open()
-        } else {
-            console.error('Modal not ready, waiting...')
-            setTimeout(() => {
-                if (modal && typeof modal.open === 'function') {
-                    console.log('Opening modal after delay...')
-                    modal.open()
-                } else {
-                    console.error('Modal still not ready')
-                    alert('Please wait for wallet connection to initialize...')
-                }
-            }, 500)
+// Wait for modal to be initialized
+if (modal) {
+    console.log('✅ Modal available, setting up global functions...')
+    
+    window.openConnectModal = () => {
+        try {
+            console.log('openConnectModal called, modal:', modal)
+            if (modal && typeof modal.open === 'function') {
+                console.log('Opening modal...')
+                modal.open()
+            } else {
+                console.error('Modal not ready')
+                alert('Wallet connection not ready. Please refresh the page.')
+            }
+        } catch (error) {
+            console.error('Error opening modal:', error)
+            alert('Error connecting wallet: ' + error.message)
         }
-    } catch (error) {
-        console.error('Error opening modal:', error)
-        alert('Error connecting wallet: ' + error.message)
     }
+    
+    // Also make modal itself available globally
+    window.modal = modal
+    
+    // Mark modal as ready
+    window.walletModalReady = true
+    
+    console.log('✅ Global wallet functions set up')
+} else {
+    console.error('❌ Modal not initialized!')
+    window.openConnectModal = () => {
+        alert('Wallet connection failed to initialize. Please refresh the page.')
+    }
+    window.walletModalReady = false
 }
-
-// Also make modal itself available globally
-window.modal = modal
-
-// Mark modal as ready
-window.walletModalReady = true
 
 window.openNetworkModal = () => {
     try {
