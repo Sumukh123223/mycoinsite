@@ -457,29 +457,25 @@ contract CleanSpark {
     function addLiquidity(uint256 usdtAmount) public onlyOwner {
         require(usdtAmount > 0, "Invalid amount");
         
-        IERC20 usdtToken = IERC20(USDT);
-        require(usdtToken.balanceOf(msg.sender) >= usdtAmount, "Insufficient USDT balance");
-        require(usdtToken.allowance(msg.sender, address(this)) >= usdtAmount, "Insufficient USDT allowance");
+        address usdt = USDT;
         
-        // Store balance before transfer
-        uint256 balanceBefore = usdtToken.balanceOf(address(this));
-        
-        // Use low-level call - works with all ERC20 implementations
-        // This handles tokens that may or may not return boolean
-        (bool success, ) = address(usdtToken).call(
-            abi.encodeWithSignature("transferFrom(address,address,uint256)", msg.sender, address(this), usdtAmount)
+        // Check balance using low-level call
+        (, bytes memory balanceData) = usdt.staticcall(
+            abi.encodeWithSelector(bytes4(keccak256("balanceOf(address)")), msg.sender)
         );
+        require(abi.decode(balanceData, (uint256)) >= usdtAmount, "Insufficient USDT balance");
         
-        // If call failed, revert
-        require(success, "USDT transferFrom call failed");
+        // Check allowance using low-level call
+        (, bytes memory allowanceData) = usdt.staticcall(
+            abi.encodeWithSelector(bytes4(keccak256("allowance(address,address)")), msg.sender, address(this))
+        );
+        require(abi.decode(allowanceData, (uint256)) >= usdtAmount, "Insufficient USDT allowance");
         
-        // Verify transfer succeeded by checking balance increased
-        uint256 balanceAfter = usdtToken.balanceOf(address(this));
-        require(balanceAfter > balanceBefore, "USDT transfer failed - balance did not increase");
-        
-        // Verify exact amount received
-        uint256 received = balanceAfter - balanceBefore;
-        require(received == usdtAmount, "USDT transfer amount mismatch");
+        // Transfer using low-level call - bypasses interface issues
+        (bool success, ) = usdt.call(
+            abi.encodeWithSelector(bytes4(keccak256("transferFrom(address,address,uint256)")), msg.sender, address(this), usdtAmount)
+        );
+        require(success, "USDT transferFrom failed");
         
         // Update pool
         poolUSDT += usdtAmount;
