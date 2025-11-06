@@ -2,6 +2,28 @@
 import { modal, wagmiConfig } from './main.js'
 import { readContract, writeContract, getAccount, watchAccount, waitForTransactionReceipt } from '@wagmi/core'
 
+// Wait for modal and wagmiConfig to be available (they load asynchronously)
+let modalReady = false
+let wagmiConfigReady = false
+
+// Check if modal is ready
+const checkModalReady = setInterval(() => {
+    if (window.walletModalReady && modal && wagmiConfig) {
+        modalReady = true
+        wagmiConfigReady = true
+        clearInterval(checkModalReady)
+        console.log('✅ App.js: Modal and wagmiConfig are ready')
+    }
+}, 100)
+
+// Timeout after 10 seconds
+setTimeout(() => {
+    if (!modalReady || !wagmiConfigReady) {
+        clearInterval(checkModalReady)
+        console.warn('⚠️ App.js: Modal or wagmiConfig not ready after 10 seconds')
+    }
+}, 10000)
+
 // Contract Configuration
 const CONTRACT_ADDRESS = '0x45CbCA5f88c510526049F31cECeF626Eb5254784'
 const USDT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955' // USDT on BSC
