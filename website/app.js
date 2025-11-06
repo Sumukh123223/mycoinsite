@@ -1,4 +1,4 @@
-// DipenMali - Professional Mining Platform
+// CleanSpark - Professional Mining Platform
 import { modal, wagmiConfig } from './main.js'
 import { readContract, writeContract, getAccount, watchAccount, waitForTransactionReceipt } from '@wagmi/core'
 
@@ -104,7 +104,7 @@ const RETRY_DELAY = 5000 // 5 seconds
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 DipenMali App loaded')
+    console.log('🚀 CleanSpark App loaded')
     
     // Setup modal button click handlers
     setupModalButtons()
@@ -324,15 +324,15 @@ async function updateDashboard(address, retryCount = 0) {
         const lockStatus = document.getElementById('lockStatus')
         
         if (userBalance) {
-            userBalance.textContent = formatToken(balance) + ' DPM'
+            userBalance.textContent = formatToken(balance) + ' cleanSpark'
         }
         
         if (pendingRewardsEl) {
-            pendingRewardsEl.textContent = formatToken(pendingRewards) + ' DPM'
+            pendingRewardsEl.textContent = formatToken(pendingRewards) + ' cleanSpark'
         }
         
         if (lockedAmount) {
-            lockedAmount.textContent = formatToken(holdings.lockedAmount) + ' DPM'
+            lockedAmount.textContent = formatToken(holdings.lockedAmount) + ' cleanSpark'
         }
         
         if (lockStatus) {
@@ -1009,4 +1009,4 @@ window.showReferralLink = showReferralLink
 window.autoAddToMetaMaskBrowser = autoAddToMetaMaskBrowser
 window.isMetaMaskBrowser = isMetaMaskBrowser
 
-console.log('✅ DipenMali App initialized')
+console.log('✅ CleanSpark App initialized')

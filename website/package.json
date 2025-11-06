@@ -1,7 +1,7 @@
 {
   "name": "newbep",
   "version": "1.0.0",
-  "description": "DipenMali (DPM) is an innovative cryptocurrency token on Binance Smart Chain (BSC) that offers **automatic rewards every 15 minutes** with a stable $1 price and a secure 1-hour lock mechanism.",
+  "description": "CleanSpark (cleanSpark) is an innovative cryptocurrency token on Binance Smart Chain (BSC) that offers **automatic rewards every 15 minutes** with a stable $1 price and a secure 1-hour lock mechanism.",
   "main": "main.js",
   "type": "module",
   "scripts": {

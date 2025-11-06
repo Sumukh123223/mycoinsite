@@ -1,4 +1,4 @@
-// DipenMali - Official Reown AppKit Integration
+// CleanSpark - Official Reown AppKit Integration
 import { createAppKit } from '@reown/appkit'
 import { bsc } from '@reown/appkit/networks'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
@@ -17,8 +17,8 @@ const wagmiAdapter = new WagmiAdapter({
 
 // Configure metadata
 const metadata = {
-  name: 'DipenMali',
-  description: 'DipenMali Rewards Platform with Auto Rewards',
+  name: 'CleanSpark',
+  description: 'CleanSpark Rewards Platform with Auto Rewards',
   url: window.location.origin,
   icons: ['https://files.reown.com/reown-social-card.png'] // You can add your own icon later
 }
