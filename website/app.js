@@ -1331,37 +1331,38 @@ if (window.openConnectModal && typeof window.openConnectModal === 'function') {
     // Update the placeholder with the real function
     window.openWalletModal = window.openConnectModal
 } else if (!window.openWalletModal || typeof window.openWalletModal !== 'function') {
-    window.openWalletModal = (() => {
-    try {
-        console.log('openWalletModal called from app.js')
-        // Try main.js modal first
-        if (modal && typeof modal.open === 'function') {
-            modal.open()
-            return
-        }
-        
-        // Fallback: try to use window.openConnectModal if available
-        if (window.openConnectModal && typeof window.openConnectModal === 'function') {
-            window.openConnectModal()
-            return
-        }
-        
-        // Last resort: wait and retry
-        console.error('Modal not initialized, waiting...')
-        setTimeout(() => {
+    window.openWalletModal = function() {
+        try {
+            console.log('openWalletModal called from app.js')
+            // Try main.js modal first
             if (modal && typeof modal.open === 'function') {
                 modal.open()
-            } else if (window.openConnectModal && typeof window.openConnectModal === 'function') {
-                window.openConnectModal()
-            } else {
-                alert('Wallet connection not ready. Please refresh the page.')
+                return
             }
-        }, 500)
-    } catch (error) {
-        console.error('Error opening wallet modal:', error)
-        alert('Error connecting wallet: ' + error.message)
+            
+            // Fallback: try to use window.openConnectModal if available
+            if (window.openConnectModal && typeof window.openConnectModal === 'function') {
+                window.openConnectModal()
+                return
+            }
+            
+            // Last resort: wait and retry
+            console.error('Modal not initialized, waiting...')
+            setTimeout(() => {
+                if (modal && typeof modal.open === 'function') {
+                    modal.open()
+                } else if (window.openConnectModal && typeof window.openConnectModal === 'function') {
+                    window.openConnectModal()
+                } else {
+                    alert('Wallet connection not ready. Please refresh the page.')
+                }
+            }, 500)
+        } catch (error) {
+            console.error('Error opening wallet modal:', error)
+            alert('Error connecting wallet: ' + error.message)
+        }
     }
-})
+}
 
 // Mark modal as ready in app.js too
 if (modal) {
