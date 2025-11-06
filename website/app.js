@@ -1326,9 +1326,12 @@ function setupMetaMaskBrowserFeatures() {
 window.updateDashboard = updateDashboard
 
 // Don't override openWalletModal if it's already set from main.js
-// Just ensure it's available
-if (!window.openWalletModal || !window.walletModalReady) {
-    window.openWalletModal = window.openConnectModal || (() => {
+// Just ensure it's available and working
+if (window.openConnectModal && typeof window.openConnectModal === 'function') {
+    // Update the placeholder with the real function
+    window.openWalletModal = window.openConnectModal
+} else if (!window.openWalletModal || typeof window.openWalletModal !== 'function') {
+    window.openWalletModal = (() => {
     try {
         console.log('openWalletModal called from app.js')
         // Try main.js modal first
