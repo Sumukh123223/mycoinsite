@@ -40,23 +40,30 @@ export const wagmiConfig = wagmiAdapter.wagmiConfig
 // Make modal globally available for HTML
 window.openConnectModal = () => {
     try {
+        console.log('openConnectModal called, modal:', modal)
         if (modal && typeof modal.open === 'function') {
+            console.log('Opening modal...')
             modal.open()
         } else {
             console.error('Modal not ready, waiting...')
             setTimeout(() => {
                 if (modal && typeof modal.open === 'function') {
+                    console.log('Opening modal after delay...')
                     modal.open()
                 } else {
+                    console.error('Modal still not ready')
                     alert('Please wait for wallet connection to initialize...')
                 }
             }, 500)
         }
     } catch (error) {
         console.error('Error opening modal:', error)
-        alert('Error connecting wallet. Please refresh the page.')
+        alert('Error connecting wallet: ' + error.message)
     }
 }
+
+// Also make modal itself available globally
+window.modal = modal
 
 window.openNetworkModal = () => {
     try {
@@ -69,7 +76,13 @@ window.openNetworkModal = () => {
 }
 
 // Also export as openWalletModal for compatibility
+// Update the placeholder function with the real one
 window.openWalletModal = window.openConnectModal
+
+// Ensure it's available
+if (!window.openWalletModal) {
+    window.openWalletModal = window.openConnectModal
+}
 
 // Ensure function is available immediately (safety check)
 if (!window.openWalletModal) {

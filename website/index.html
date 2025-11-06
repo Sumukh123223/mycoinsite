@@ -628,6 +628,41 @@
     <!-- Reown AppKit Modal -->
     <appkit-network-button style="display:none" />
     
+    <!-- Initialize wallet connect function immediately (before modules load) -->
+    <script>
+        // Define placeholder function immediately so onclick handlers work
+        window.openWalletModal = function() {
+            console.log('Opening wallet modal...')
+            // Wait for modal to be ready
+            if (window.openConnectModal && typeof window.openConnectModal === 'function') {
+                window.openConnectModal()
+            } else if (window.modal && typeof window.modal.open === 'function') {
+                window.modal.open()
+            } else {
+                // Retry after a short delay
+                setTimeout(function() {
+                    if (window.openConnectModal && typeof window.openConnectModal === 'function') {
+                        window.openConnectModal()
+                    } else if (window.modal && typeof window.modal.open === 'function') {
+                        window.modal.open()
+                    } else {
+                        alert('Wallet connection is loading. Please wait a moment and try again.')
+                    }
+                }, 1000)
+            }
+        }
+        
+        window.disconnectWallet = function() {
+            if (window.handleDisconnect && typeof window.handleDisconnect === 'function') {
+                window.handleDisconnect()
+            } else {
+                alert('Disconnect function is loading. Please refresh the page.')
+            }
+        }
+        
+        console.log('✅ Wallet connect functions initialized')
+    </script>
+    
     <!-- Load scripts: main.js first, then app.js -->
     <script type="module" src="main.js"></script>
     <script type="module" src="app.js"></script>
