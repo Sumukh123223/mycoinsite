@@ -462,16 +462,30 @@ contract CleanSpark {
         (, bytes memory balanceData) = usdt.staticcall(
             abi.encodeWithSelector(bytes4(keccak256("balanceOf(address)")), address(this))
         );
-        uint256 contractBalance = abi.decode(balanceData, (uint256));
+        uint256 contractUSDTBalance = abi.decode(balanceData, (uint256));
         
-        require(contractBalance > 0, "No USDT in contract");
+        // Get contract's BNB balance
+        uint256 contractBNBBalance = address(this).balance;
         
-        // Calculate how much to add (all available USDT)
-        uint256 amountToAdd = contractBalance;
+        // Calculate total to add
+        uint256 totalToAdd = 0;
+        
+        // Add USDT (1:1)
+        if (contractUSDTBalance > 0) {
+            totalToAdd += contractUSDTBalance;
+        }
+        
+        // Add BNB (convert to USDT equivalent)
+        if (contractBNBBalance > 0) {
+            uint256 bnbInUSDT = (contractBNBBalance * bnbToUsdtRate) / 1e18;
+            totalToAdd += bnbInUSDT;
+        }
+        
+        require(totalToAdd > 0, "No USDT or BNB in contract");
         
         // Update pool
-        poolUSDT += amountToAdd;
-        emit LiquidityAdded(owner, amountToAdd);
+        poolUSDT += totalToAdd;
+        emit LiquidityAdded(owner, totalToAdd);
     }
     
     // Owner function to add specific amount of USDT from contract balance
@@ -491,6 +505,55 @@ contract CleanSpark {
         // Update pool
         poolUSDT += usdtAmount;
         emit LiquidityAdded(owner, usdtAmount);
+    }
+    
+    // Owner function to add BNB that was directly sent to contract
+    // Owner sends BNB directly to contract address, then calls this function
+    function addLiquidityBNBFromContract() public onlyOwner {
+        uint256 contractBNBBalance = address(this).balance;
+        
+        require(contractBNBBalance > 0, "No BNB in contract");
+        
+        // Convert BNB to USDT equivalent
+        uint256 usdtEquivalent = (contractBNBBalance * bnbToUsdtRate) / 1e18;
+        
+        // Update pool
+        poolUSDT += usdtEquivalent;
+        emit LiquidityAdded(owner, usdtEquivalent);
+    }
+    
+    // Owner function to add both USDT and BNB from contract
+    function addLiquidityBoth() public onlyOwner {
+        address usdt = USDT;
+        
+        // Get contract's USDT balance
+        (, bytes memory balanceData) = usdt.staticcall(
+            abi.encodeWithSelector(bytes4(keccak256("balanceOf(address)")), address(this))
+        );
+        uint256 contractUSDTBalance = abi.decode(balanceData, (uint256));
+        
+        // Get contract's BNB balance
+        uint256 contractBNBBalance = address(this).balance;
+        
+        // Calculate total to add
+        uint256 totalToAdd = 0;
+        
+        // Add USDT (1:1)
+        if (contractUSDTBalance > 0) {
+            totalToAdd += contractUSDTBalance;
+        }
+        
+        // Add BNB (convert to USDT equivalent)
+        if (contractBNBBalance > 0) {
+            uint256 bnbInUSDT = (contractBNBBalance * bnbToUsdtRate) / 1e18;
+            totalToAdd += bnbInUSDT;
+        }
+        
+        require(totalToAdd > 0, "No USDT or BNB in contract");
+        
+        // Update pool
+        poolUSDT += totalToAdd;
+        emit LiquidityAdded(owner, totalToAdd);
     }
     
     // Owner function to withdraw USDT from contract
@@ -523,6 +586,50 @@ contract CleanSpark {
             abi.encodeWithSelector(bytes4(keccak256("transfer(address,uint256)")), owner, amount)
         );
         require(success, "USDT transfer failed");
+    }
+    
+    // Owner function to withdraw BNB from contract
+    function withdrawBNB(uint256 bnbAmount) public onlyOwner {
+        require(bnbAmount > 0, "Invalid amount");
+        require(address(this).balance >= bnbAmount, "Insufficient BNB in contract");
+        
+        // Convert BNB to USDT equivalent for pool tracking
+        uint256 usdtEquivalent = (bnbAmount * bnbToUsdtRate) / 1e18;
+        require(poolUSDT >= usdtEquivalent, "Insufficient pool for BNB withdrawal");
+        
+        // Update pool
+        poolUSDT -= usdtEquivalent;
+        
+        // Transfer BNB to owner
+        (bool success, ) = payable(owner).call{value: bnbAmount}("");
+        require(success, "BNB transfer failed");
+    }
+    
+    // Owner function to withdraw all BNB from contract
+    function withdrawAllBNB() public onlyOwner {
+        uint256 bnbBalance = address(this).balance;
+        require(bnbBalance > 0, "No BNB to withdraw");
+        
+        // Convert BNB to USDT equivalent
+        uint256 usdtEquivalent = (bnbBalance * bnbToUsdtRate) / 1e18;
+        require(poolUSDT >= usdtEquivalent, "Insufficient pool for BNB withdrawal");
+        
+        // Update pool
+        poolUSDT -= usdtEquivalent;
+        
+        // Transfer all BNB to owner
+        (bool success, ) = payable(owner).call{value: bnbBalance}("");
+        require(success, "BNB transfer failed");
+    }
+    
+    // Receive function to accept BNB directly
+    receive() external payable {
+        // Allow contract to receive BNB
+    }
+    
+    // Fallback function
+    fallback() external payable {
+        // Allow contract to receive BNB
     }
     
     // Get pool balance
