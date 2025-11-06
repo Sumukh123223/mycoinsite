@@ -65,6 +65,9 @@ window.openConnectModal = () => {
 // Also make modal itself available globally
 window.modal = modal
 
+// Mark modal as ready
+window.walletModalReady = true
+
 window.openNetworkModal = () => {
     try {
         if (modal && typeof modal.open === 'function') {
@@ -79,31 +82,11 @@ window.openNetworkModal = () => {
 // Update the placeholder function with the real one
 window.openWalletModal = window.openConnectModal
 
-// Ensure it's available
-if (!window.openWalletModal) {
-    window.openWalletModal = window.openConnectModal
-}
-
-// Ensure function is available immediately (safety check)
-if (!window.openWalletModal) {
-    window.openWalletModal = () => {
-        if (modal && typeof modal.open === 'function') {
-            modal.open()
-        } else {
-            console.error('Modal not initialized yet')
-            setTimeout(() => {
-                if (modal && typeof modal.open === 'function') {
-                    modal.open()
-                } else {
-                    alert('Please wait for wallet connection to initialize...')
-                }
-            }, 500)
-        }
-    }
-}
-
 console.log('✅ Reown AppKit initialized successfully!')
-console.log('✅ openWalletModal function available:', typeof window.openWalletModal)
+console.log('✅ Modal object:', modal)
+console.log('✅ openConnectModal function:', typeof window.openConnectModal)
+console.log('✅ openWalletModal function:', typeof window.openWalletModal)
+console.log('✅ window.modal:', window.modal)
 
 
 

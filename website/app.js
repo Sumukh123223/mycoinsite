@@ -1302,8 +1302,11 @@ function setupMetaMaskBrowserFeatures() {
 
 // Export functions for global use
 window.updateDashboard = updateDashboard
-// Update openWalletModal to use the real modal (don't override if already set)
-window.openWalletModal = window.openWalletModal || (() => {
+
+// Don't override openWalletModal if it's already set from main.js
+// Just ensure it's available
+if (!window.openWalletModal || !window.walletModalReady) {
+    window.openWalletModal = window.openConnectModal || (() => {
     try {
         console.log('openWalletModal called from app.js')
         // Try main.js modal first
@@ -1334,6 +1337,13 @@ window.openWalletModal = window.openWalletModal || (() => {
         alert('Error connecting wallet: ' + error.message)
     }
 })
+
+// Mark modal as ready in app.js too
+if (modal) {
+    window.walletModalReady = true
+    console.log('✅ App.js: Modal confirmed ready')
+}
+
 window.handleDisconnect = handleDisconnect
 window.disconnectWallet = handleDisconnect
 window.updateReferralDisplay = updateReferralDisplay
