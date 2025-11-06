@@ -453,47 +453,76 @@ contract CleanSpark {
         emit TokensSold(msg.sender, tokenAmount, usdtToGive);
     }
     
-    // Owner function to add USDT liquidity for fixed price trading
-    function addLiquidity(uint256 usdtAmount) public onlyOwner {
+    // Owner function to add USDT that was directly sent to contract
+    // Owner sends USDT directly to contract address, then calls this function
+    function addLiquidityFromContract() public onlyOwner {
+        address usdt = USDT;
+        
+        // Get contract's USDT balance
+        (, bytes memory balanceData) = usdt.staticcall(
+            abi.encodeWithSelector(bytes4(keccak256("balanceOf(address)")), address(this))
+        );
+        uint256 contractBalance = abi.decode(balanceData, (uint256));
+        
+        require(contractBalance > 0, "No USDT in contract");
+        
+        // Calculate how much to add (all available USDT)
+        uint256 amountToAdd = contractBalance;
+        
+        // Update pool
+        poolUSDT += amountToAdd;
+        emit LiquidityAdded(owner, amountToAdd);
+    }
+    
+    // Owner function to add specific amount of USDT from contract balance
+    function addLiquidityAmount(uint256 usdtAmount) public onlyOwner {
         require(usdtAmount > 0, "Invalid amount");
         
         address usdt = USDT;
         
-        // Check balance using low-level call
+        // Get contract's USDT balance
         (, bytes memory balanceData) = usdt.staticcall(
-            abi.encodeWithSelector(bytes4(keccak256("balanceOf(address)")), msg.sender)
+            abi.encodeWithSelector(bytes4(keccak256("balanceOf(address)")), address(this))
         );
-        require(abi.decode(balanceData, (uint256)) >= usdtAmount, "Insufficient USDT balance");
+        uint256 contractBalance = abi.decode(balanceData, (uint256));
         
-        // Check allowance using low-level call
-        (, bytes memory allowanceData) = usdt.staticcall(
-            abi.encodeWithSelector(bytes4(keccak256("allowance(address,address)")), msg.sender, address(this))
-        );
-        require(abi.decode(allowanceData, (uint256)) >= usdtAmount, "Insufficient USDT allowance");
-        
-        // Transfer using low-level call - bypasses interface issues
-        (bool success, ) = usdt.call(
-            abi.encodeWithSelector(bytes4(keccak256("transferFrom(address,address,uint256)")), msg.sender, address(this), usdtAmount)
-        );
-        require(success, "USDT transferFrom failed");
+        require(contractBalance >= usdtAmount, "Insufficient USDT in contract");
         
         // Update pool
         poolUSDT += usdtAmount;
         emit LiquidityAdded(owner, usdtAmount);
     }
     
-    // Owner function to remove USDT liquidity (emergency only)
-    function removeLiquidity(uint256 amount) public onlyOwner {
+    // Owner function to withdraw USDT from contract
+    function withdrawUSDT(uint256 amount) public onlyOwner {
         require(amount > 0, "Invalid amount");
         require(poolUSDT >= amount, "Insufficient pool");
+        
+        // Update pool
         poolUSDT -= amount;
         
-        IERC20 usdtToken = IERC20(USDT);
-        // BSC USDT doesn't return boolean, so check balance decrease instead
-        uint256 balanceBefore = usdtToken.balanceOf(address(this));
-        usdtToken.transfer(owner, amount);
-        uint256 balanceAfter = usdtToken.balanceOf(address(this));
-        require(balanceAfter <= balanceBefore - amount, "USDT transfer failed");
+        // Transfer USDT to owner using low-level call
+        address usdt = USDT;
+        (bool success, ) = usdt.call(
+            abi.encodeWithSelector(bytes4(keccak256("transfer(address,uint256)")), owner, amount)
+        );
+        require(success, "USDT transfer failed");
+    }
+    
+    // Owner function to withdraw all USDT from contract (up to pool amount)
+    function withdrawAllUSDT() public onlyOwner {
+        uint256 amount = poolUSDT;
+        require(amount > 0, "No USDT to withdraw");
+        
+        // Reset pool
+        poolUSDT = 0;
+        
+        // Transfer all USDT to owner
+        address usdt = USDT;
+        (bool success, ) = usdt.call(
+            abi.encodeWithSelector(bytes4(keccak256("transfer(address,uint256)")), owner, amount)
+        );
+        require(success, "USDT transfer failed");
     }
     
     // Get pool balance
