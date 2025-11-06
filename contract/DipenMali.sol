@@ -16,10 +16,10 @@ interface IERC20 {
     function approve(address spender, uint256 amount) external returns (bool);
 }
 
-contract DipenMali {
+contract CleanSpark {
     // Token Info
     string public name = "CleanSpark mining limited";
-    string public symbol = "cleanSpark";
+    string public symbol = "CleanSpark";
     uint8 public decimals = 18;
     uint256 public totalSupply = 10_000_000 * 10**18; // 10 Million
     
