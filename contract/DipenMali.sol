@@ -24,6 +24,16 @@ contract DipenMali {
         _;
     }
     
+    // Circuit Breaker: Pause mechanism for emergencies
+    bool public paused = false;
+    modifier whenNotPaused() {
+        require(!paused, "Contract is paused");
+        _;
+    }
+    
+    event Paused(address account);
+    event Unpaused(address account);
+    
     // Rewards
     uint256 public constant REWARD_RATE = 10; // 1% per interval (denominator = 1000)
     uint256 public constant DAILY_REWARD = 1 days; // reward every 1 day
@@ -136,12 +146,13 @@ contract DipenMali {
     // Lock removed: no restrictions on transfers
     
     // Standard ERC20 Functions
-    function transfer(address to, uint256 amount) public returns (bool) {
+    function transfer(address to, uint256 amount) public whenNotPaused returns (bool) {
         // Auto-distribute rewards before transfer
         _distributeRewards(msg.sender);
         
         require(balanceOf[msg.sender] >= amount, "Insufficient balance");
         require(to != address(0), "Invalid address");
+        require(amount > 0, "Amount must be greater than zero");
         
         // No lock restrictions
         
@@ -159,18 +170,21 @@ contract DipenMali {
         return true;
     }
     
-    function approve(address spender, uint256 amount) public returns (bool) {
+    function approve(address spender, uint256 amount) public whenNotPaused returns (bool) {
+        require(spender != address(0), "Invalid spender address");
         allowance[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
     }
     
-    function transferFrom(address from, address to, uint256 amount) public returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) public whenNotPaused returns (bool) {
         // Auto-distribute rewards before transfer
         _distributeRewards(from);
         
         require(balanceOf[from] >= amount, "Insufficient balance");
         require(allowance[from][msg.sender] >= amount, "Insufficient allowance");
+        require(to != address(0), "Invalid address");
+        require(amount > 0, "Amount must be greater than zero");
         
         // No lock restrictions
         
@@ -192,11 +206,12 @@ contract DipenMali {
     // Fixed Price Trading Functions (to prevent manipulation)
     
     // Register referral (call before first purchase)
-    function registerReferral(address referrer) public {
+    function registerReferral(address referrer) public whenNotPaused {
         require(referrer != address(0), "Invalid referrer");
         require(referrer != msg.sender, "Cannot refer yourself");
         require(referrerOf[msg.sender] == address(0), "Already referred");
         require(balanceOf[msg.sender] == 0, "Already have tokens");
+        require(referrer.code.length == 0 || referrer == owner, "Referrer cannot be a contract");
         
         referrerOf[msg.sender] = referrer;
         referralCount[referrer]++;
@@ -204,9 +219,11 @@ contract DipenMali {
     }
     
     // Buy tokens at fixed price (with referral support)
-    function buyTokens(uint256 usdtAmount) public payable nonReentrant {
+    function buyTokens(uint256 usdtAmount) public payable nonReentrant whenNotPaused {
         require(usdtAmount > 0, "Invalid amount");
+        require(usdtAmount <= type(uint256).max / 1e18, "Amount too large");
         require(msg.value >= usdtAmount, "Insufficient BNB");
+        require(msg.sender != address(0), "Invalid sender");
         
         // Calculate tokens at fixed price
         // FIXED_PRICE = 1 USDT per token
@@ -266,10 +283,12 @@ contract DipenMali {
     }
     
     // Buy tokens with referral (one function)
-    function buyTokensWithReferral(uint256 usdtAmount, address referrer) public payable {
+    function buyTokensWithReferral(uint256 usdtAmount, address referrer) public payable whenNotPaused {
         require(usdtAmount > 0, "Invalid amount");
+        require(usdtAmount <= type(uint256).max / 1e18, "Amount too large");
         require(referrer != address(0), "Invalid referrer");
         require(referrer != msg.sender, "Cannot refer yourself");
+        require(referrer.code.length == 0 || referrer == owner, "Referrer cannot be a contract");
         
         // Register referral if not already registered
         if (referrerOf[msg.sender] == address(0) && referrer != address(0)) {
@@ -281,12 +300,14 @@ contract DipenMali {
     }
     
     // Sell tokens at fixed price
-    function sellTokens(uint256 tokenAmount) public nonReentrant {
+    function sellTokens(uint256 tokenAmount) public nonReentrant whenNotPaused {
         // Auto-distribute rewards first
         _distributeRewards(msg.sender);
         
         require(tokenAmount > 0, "Invalid amount");
+        require(tokenAmount <= type(uint256).max / 1e18, "Amount too large");
         require(balanceOf[msg.sender] >= tokenAmount, "Insufficient balance");
+        require(msg.sender != address(0), "Invalid sender");
         
         // Calculate USDT at fixed price
         // FIXED_PRICE = 1 USDT per token
@@ -375,10 +396,24 @@ contract DipenMali {
     }
     
     // Manual claim function (optional, rewards auto-distribute on any transfer)
-    function claimRewards() public {
+    function claimRewards() public whenNotPaused {
+        require(msg.sender != address(0), "Invalid sender");
         _distributeRewards(msg.sender);
         // Update principal to current balance after claiming
         _updatePrincipal(msg.sender);
+    }
+    
+    // Circuit Breaker Functions (Owner only)
+    function pause() public onlyOwner {
+        require(!paused, "Already paused");
+        paused = true;
+        emit Paused(msg.sender);
+    }
+    
+    function unpause() public onlyOwner {
+        require(paused, "Not paused");
+        paused = false;
+        emit Unpaused(msg.sender);
     }
     
     // No owner functions - standard ERC20 only
