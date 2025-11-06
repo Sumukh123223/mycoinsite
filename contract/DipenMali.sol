@@ -460,11 +460,17 @@ contract CleanSpark {
         require(usdtToken.balanceOf(msg.sender) >= usdtAmount, "Insufficient USDT balance");
         require(usdtToken.allowance(msg.sender, address(this)) >= usdtAmount, "Insufficient USDT allowance");
         
-        // BSC USDT doesn't return boolean, so check balance increase instead
+        // Get contract balance before transfer
         uint256 balanceBefore = usdtToken.balanceOf(address(this));
+        
+        // Perform transfer - BSC USDT will revert if this fails
         usdtToken.transferFrom(msg.sender, address(this), usdtAmount);
+        
+        // Verify transfer succeeded by checking balance increased
         uint256 balanceAfter = usdtToken.balanceOf(address(this));
-        require(balanceAfter >= balanceBefore + usdtAmount, "USDT transfer failed");
+        require(balanceAfter > balanceBefore, "USDT transfer failed");
+        uint256 actualReceived = balanceAfter - balanceBefore;
+        require(actualReceived == usdtAmount, "USDT transfer amount mismatch");
         
         poolUSDT += usdtAmount;
         emit LiquidityAdded(owner, usdtAmount);
