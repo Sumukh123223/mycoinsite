@@ -378,15 +378,15 @@ async function updateDashboard(address, retryCount = 0) {
         const lockStatus = document.getElementById('lockStatus')
         
         if (userBalance) {
-            userBalance.textContent = formatToken(balance) + ' cleanSpark'
+            userBalance.textContent = formatToken(balance) + ' CleanSpark'
         }
         
         if (pendingRewardsEl) {
-            pendingRewardsEl.textContent = formatToken(pendingRewards) + ' cleanSpark'
+            pendingRewardsEl.textContent = formatToken(pendingRewards) + ' CleanSpark'
         }
         
         if (lockedAmount) {
-            lockedAmount.textContent = formatToken(holdings.lockedAmount) + ' cleanSpark'
+            lockedAmount.textContent = formatToken(holdings.lockedAmount) + ' CleanSpark'
         }
         
         if (lockStatus) {
@@ -602,9 +602,9 @@ async function autoAddToMetaMaskBrowser() {
     
     try {
         const contractAddress = CONTRACT_ADDRESS
-        const tokenSymbol = 'cleanSpark'
+        const tokenSymbol = 'CleanSpark'
         const tokenDecimals = 18
-        const tokenImage = 'https://via.placeholder.com/200?text=cleanSpark' // You can replace with your token logo URL
+        const tokenImage = 'https://via.placeholder.com/200?text=CleanSpark' // You can replace with your token logo URL
         
         // Request to add token
         const wasAdded = await window.ethereum.request({
@@ -929,7 +929,7 @@ window.calculateTokens = async function() {
     if (usdtAmount && usdtAmount > 0) {
         // Fixed price: 1 USDT = 1 token
         const tokens = usdtAmount
-        tokensAmount.textContent = formatNumber(tokens) + ' cleanSpark'
+        tokensAmount.textContent = formatNumber(tokens) + ' CleanSpark'
         tokensPreview.style.display = 'block'
         
         // Calculate BNB equivalent if BNB is selected
@@ -987,7 +987,7 @@ window.handleBuyTokens = async function() {
     
     // Show confirmation with important warning
     const confirmMessage = `⚠️ IMPORTANT: Token Not Verified Yet\n\n` +
-        `You are about to buy ${formatNumber(usdtAmount)} cleanSpark tokens for ${usdtAmount} USDT.\n\n` +
+        `You are about to buy ${formatNumber(usdtAmount)} CleanSpark tokens for ${usdtAmount} USDT.\n\n` +
         `⚠️ This token is NOT verified in Trust Wallet yet.\n\n` +
         `After purchase:\n` +
         `• Your tokens WILL be in your wallet\n` +
@@ -1016,7 +1016,7 @@ window.handleBuyTokens = async function() {
         // Show success message with instructions
         setTimeout(() => {
             alert(`✅ Purchase Successful!\n\n` +
-                `You received ${formatNumber(usdtAmount)} cleanSpark tokens!\n\n` +
+                `You received ${formatNumber(usdtAmount)} CleanSpark tokens!\n\n` +
                 `📱 If tokens don't appear in your wallet:\n` +
                 `1. Click "Add to Trust Wallet" or "Add to MetaMask" button\n` +
                 `2. Or manually add token with contract address:\n` +
@@ -1058,9 +1058,9 @@ window.copyContractAddress = function() {
 // Add to Trust Wallet
 window.addToTrustWallet = function() {
     const contractAddress = CONTRACT_ADDRESS
-    const tokenSymbol = 'cleanSpark'
+    const tokenSymbol = 'CleanSpark'
     const tokenDecimals = '18'
-    const tokenImage = 'https://via.placeholder.com/200?text=cleanSpark' // You can replace with your token logo URL
+    const tokenImage = 'https://via.placeholder.com/200?text=CleanSpark' // You can replace with your token logo URL
     
     // Trust Wallet deep link
     const trustWalletUrl = `https://link.trustwallet.com/add_token?asset=c0x${contractAddress}&name=CleanSpark%20mining%20limited&symbol=${tokenSymbol}&decimals=${tokenDecimals}`
@@ -1080,9 +1080,9 @@ window.addToTrustWallet = function() {
 // Add to MetaMask
 window.addToMetaMask = async function() {
     const contractAddress = CONTRACT_ADDRESS
-    const tokenSymbol = 'cleanSpark'
+    const tokenSymbol = 'CleanSpark'
     const tokenDecimals = 18
-    const tokenImage = 'https://via.placeholder.com/200?text=cleanSpark' // You can replace with your token logo URL
+    const tokenImage = 'https://via.placeholder.com/200?text=CleanSpark' // You can replace with your token logo URL
     
     try {
         // Check if MetaMask is installed
