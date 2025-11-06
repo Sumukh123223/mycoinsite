@@ -3,7 +3,7 @@ import { modal, wagmiConfig } from './main.js'
 import { readContract, writeContract, getAccount, watchAccount, waitForTransactionReceipt } from '@wagmi/core'
 
 // Contract Configuration
-const CONTRACT_ADDRESS = '0xC2E15E459a624CAA83488B7b5c5eEf6CFb88Eb2C'
+const CONTRACT_ADDRESS = '0xB659182f4e59e8F123D13fdc4e13B2f03E01aea8'
 const USDT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955' // USDT on BSC
 
 // USDT ERC20 ABI (minimal)
