@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite'
 
-// Base path for GitHub Pages (adjust if your repo name is different)
-const base = process.env.NODE_ENV === 'production' ? '/mycoinsite/' : '/'
+// Base path for GitHub Pages
+// If your site is at username.github.io/repo-name, use '/repo-name/'
+// If your site is at username.github.io, use '/'
+const base = process.env.GITHUB_PAGES_BASE || (process.env.NODE_ENV === 'production' ? '/mycoinsite/' : '/')
 
 export default defineConfig({
   base: base,
