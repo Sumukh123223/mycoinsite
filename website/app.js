@@ -78,7 +78,7 @@ const CONTRACT_ABI = [
         outputs: [
             { name: 'referrer', type: 'address' },
             { name: 'totalEarnings', type: 'uint256' },
-            { name: 'referralCount', type: 'uint256' },
+            { name: 'count', type: 'uint256' },
             { name: 'totalVolume', type: 'uint256' }
         ],
         stateMutability: 'view',
@@ -606,7 +606,7 @@ async function updateReferralDisplay() {
         if (referralStats) {
             referralStats.innerHTML = `
                 <div class="referral-stat">
-                    <strong>Referrals:</strong> ${referralInfo.referralCount.toString()}
+                    <strong>Referrals:</strong> ${referralInfo.count.toString()}
                 </div>
                 <div class="referral-stat">
                     <strong>Total Earnings:</strong> ${formatUSDT(referralInfo.totalEarnings)} USDT
@@ -618,7 +618,7 @@ async function updateReferralDisplay() {
         }
         
         // Show referral link if user has referrals
-        if (Number(referralInfo.referralCount) > 0) {
+        if (Number(referralInfo.count) > 0) {
             showReferralLink()
         }
     } catch (error) {
