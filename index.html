@@ -36,6 +36,9 @@
                     <li><a href="#dashboard">Dashboard</a></li>
                 </ul>
                 <div id="walletButtonContainer">
+                    <!-- Official Reown AppKit Button Component -->
+                    <appkit-button id="appkitButton" style="display: none;"></appkit-button>
+                    <!-- Fallback custom button (shown by default, hidden when AppKit button is ready) -->
                     <button class="wallet-connect-btn" id="walletConnectBtn" onclick="openWalletModal()">
                         🔷 Connect Wallet
                     </button>
@@ -605,11 +608,283 @@
         </div>
     </footer>
 
-    <!-- Reown AppKit Modal -->
+    <!-- Reown AppKit Network Button (optional, for network switching) -->
     <appkit-network-button style="display:none" />
     
-    <!-- Load scripts: main.js first, then app.js -->
+    <!-- Initialize wallet connect function immediately (before modules load) -->
+    <script>
+        // Define placeholder function immediately so onclick handlers work
+        window.openWalletModal = function() {
+            console.log('🔵 openWalletModal called')
+            
+            // Use official AppKit modal
+            if (window.openConnectModal && typeof window.openConnectModal === 'function' && window.walletModalReady) {
+                window.openConnectModal()
+            } else if (window.modal && typeof window.modal.open === 'function') {
+                window.modal.open()
+            } else {
+                alert('⚠️ Wallet connection is loading... Please wait a moment and try again.')
+            }
+        }
+        
+        window.disconnectWallet = function() {
+            if (window.modal && typeof window.modal.close === 'function') {
+                window.modal.close()
+            }
+            // Clear state
+            window.account = null
+            window.provider = null
+            window.signer = null
+            updateWalletUI()
+        }
+        
+        function updateWalletUI() {
+            const walletBtn = document.getElementById('walletConnectBtn')
+            const walletInfo = document.getElementById('walletInfo')
+            const walletAddress = document.getElementById('walletAddress')
+            
+            if (window.account) {
+                if (walletBtn) walletBtn.style.display = 'none'
+                if (walletInfo) walletInfo.style.display = 'flex'
+                if (walletAddress) {
+                    walletAddress.textContent = `${window.account.substring(0, 6)}...${window.account.substring(38)}`
+                }
+            } else {
+                if (walletBtn) walletBtn.style.display = 'block'
+                if (walletInfo) walletInfo.style.display = 'none'
+            }
+        }
+        
+        console.log('✅ Wallet connect placeholder functions initialized')
+    </script>
+    
+    <!-- Define all functions FIRST, before loading ethers.js -->
+    <script>
+        // Polyfill for 'process' (required by WalletConnect)
+        if (typeof process === 'undefined') {
+            window.process = {
+                env: { NODE_ENV: 'production' },
+                version: '',
+                versions: {},
+                browser: true
+            }
+            console.log('✅ Process polyfill added')
+        }
+        
+        // Function to load WalletConnect provider from CDN
+        function loadWalletConnect() {
+            // Try loading WalletConnect Ethereum Provider from CDN
+            // Try jsDelivr first (better UMD support)
+            const wcScript = document.createElement('script')
+            wcScript.src = 'https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.1/dist/index.umd.js'
+            wcScript.onload = function() {
+                console.log('✅ WalletConnect provider script loaded')
+                // Wait a moment for the global to be available
+                setTimeout(function() {
+                    // Check multiple possible global names
+                    let providerFound = false
+                    const possibleNames = [
+                        'EthereumProvider',
+                        'WalletConnectEthereumProvider',
+                        'WalletConnect',
+                        'WC'
+                    ]
+                    
+                    for (const name of possibleNames) {
+                        if (typeof window[name] !== 'undefined') {
+                            console.log('✅ Found WalletConnect provider as:', name)
+                            providerFound = true
+                            break
+                        }
+                    }
+                    
+                    // Also check if it's nested
+                    if (!providerFound && window.WalletConnect && window.WalletConnect.EthereumProvider) {
+                        console.log('✅ Found WalletConnect provider as WalletConnect.EthereumProvider')
+                        providerFound = true
+                    }
+                    
+                    // Check for scoped package name (common with UMD bundles)
+                    if (!providerFound && window['@walletconnect/ethereum-provider']) {
+                        console.log('✅ Found WalletConnect provider as @walletconnect/ethereum-provider')
+                        const wcModule = window['@walletconnect/ethereum-provider']
+                        // Extract EthereumProvider from the module
+                        if (wcModule && (wcModule.EthereumProvider || wcModule.default)) {
+                            window.EthereumProvider = wcModule.EthereumProvider || wcModule.default
+                            console.log('✅ Stored EthereumProvider in window.EthereumProvider')
+                            providerFound = true
+                        } else if (wcModule && typeof wcModule.init === 'function') {
+                            // It might be the provider itself
+                            window.EthereumProvider = { init: wcModule.init.bind(wcModule) }
+                            console.log('✅ Wrapped provider init function')
+                            providerFound = true
+                        }
+                    }
+                    
+                    if (providerFound) {
+                        console.log('✅ WalletConnect Ethereum Provider available')
+                    } else {
+                        console.warn('⚠️ WalletConnect provider loaded but not accessible')
+                        console.log('Available globals:', Object.keys(window).filter(k => 
+                            k.toLowerCase().includes('wallet') || 
+                            k.toLowerCase().includes('connect') ||
+                            k.includes('@')
+                        ))
+                        // Try to inspect the scoped package
+                        if (window['@walletconnect/ethereum-provider']) {
+                            console.log('Inspecting @walletconnect/ethereum-provider:', window['@walletconnect/ethereum-provider'])
+                            const wc = window['@walletconnect/ethereum-provider']
+                            console.log('Keys:', Object.keys(wc || {}))
+                        }
+                    }
+                    initScripts()
+                }, 500) // Increased wait time
+            }
+            wcScript.onerror = function() {
+                console.warn('⚠️ jsDelivr failed, trying unpkg...')
+                loadWalletConnectUnpkg()
+            }
+            document.body.appendChild(wcScript)
+        }
+        
+        // Fallback: Try unpkg CDN
+        function loadWalletConnectUnpkg() {
+            const wcScript = document.createElement('script')
+            wcScript.src = 'https://unpkg.com/@walletconnect/ethereum-provider@2.13.1/dist/index.umd.js'
+            wcScript.onload = function() {
+                console.log('✅ WalletConnect provider script loaded from unpkg')
+                setTimeout(function() {
+                    // Same detection logic as main function
+                    if (window['@walletconnect/ethereum-provider']) {
+                        const wcModule = window['@walletconnect/ethereum-provider']
+                        if (wcModule && (wcModule.EthereumProvider || wcModule.default)) {
+                            window.EthereumProvider = wcModule.EthereumProvider || wcModule.default
+                            console.log('✅ Stored EthereumProvider in window.EthereumProvider')
+                        } else if (wcModule && typeof wcModule.init === 'function') {
+                            window.EthereumProvider = { init: wcModule.init.bind(wcModule) }
+                            console.log('✅ Wrapped provider init function')
+                        }
+                    }
+                    initScripts()
+                }, 500)
+            }
+            wcScript.onerror = function() {
+                console.error('❌ All WalletConnect CDN attempts failed')
+                initScripts() // Continue anyway
+            }
+            document.body.appendChild(wcScript)
+        }
+        
+        // Function to load other scripts after ethers.js and WalletConnect are ready
+        function initScripts() {
+            if (typeof ethers === 'undefined') {
+                console.log('⏳ Waiting for ethers.js...')
+                setTimeout(initScripts, 50)
+                return
+            }
+            
+            console.log('✅ ethers.js is ready!')
+            
+            // Check if scripts already loaded
+            if (document.querySelector('script[src="walletconnect-simple.js"]')) {
+                console.log('✅ Scripts already loaded')
+                return
+            }
+            
+            // Load AppKit setup (official Reown AppKit UI)
+            const appkitScript = document.createElement('script')
+            appkitScript.type = 'module'
+            appkitScript.src = 'appkit-setup.js'
+            appkitScript.onload = function() {
+                console.log('✅ appkit-setup.js loaded')
+                
+                // Load app-simple.js after AppKit setup
+                const appScript = document.createElement('script')
+                appScript.src = 'app-simple.js'
+                appScript.onload = function() {
+                    console.log('✅ app-simple.js loaded')
+                    console.log('✅ All scripts loaded successfully!')
+                }
+                appScript.onerror = function() {
+                    console.error('❌ Failed to load app-simple.js')
+                }
+                document.body.appendChild(appScript)
+            }
+            appkitScript.onerror = function() {
+                console.error('❌ Failed to load appkit-setup.js')
+                // Fallback: try loading walletconnect-simple.js
+                console.log('⚠️ Falling back to simple WalletConnect...')
+                const walletScript = document.createElement('script')
+                walletScript.src = 'walletconnect-simple.js'
+                document.body.appendChild(walletScript)
+            }
+            document.body.appendChild(appkitScript)
+        }
+        
+        // Fallback: Load from unpkg if jsDelivr fails
+        function loadEthersFromUnpkg() {
+            if (typeof ethers !== 'undefined') {
+                loadWalletConnect()
+                return
+            }
+            
+            console.log('🔄 Trying unpkg CDN...')
+            const script = document.createElement('script')
+            script.src = 'https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js'
+            script.onload = function() {
+                console.log('✅ ethers.js loaded from unpkg')
+                loadWalletConnect()
+            }
+            script.onerror = function() {
+                console.error('❌ Failed from unpkg, trying cdnjs...')
+                loadEthersFromCdnjs()
+            }
+            document.body.appendChild(script)
+        }
+        
+        // Fallback: Load from cdnjs if unpkg fails
+        function loadEthersFromCdnjs() {
+            if (typeof ethers !== 'undefined') {
+                loadWalletConnect()
+                return
+            }
+            
+            console.log('🔄 Trying cdnjs CDN...')
+            const script = document.createElement('script')
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js'
+            script.onload = function() {
+                console.log('✅ ethers.js loaded from cdnjs')
+                loadWalletConnect()
+            }
+            script.onerror = function() {
+                console.error('❌ All CDN attempts failed!')
+                alert('❌ Failed to load ethers.js!\n\nPlease check your internet connection and refresh the page.')
+            }
+            document.body.appendChild(script)
+        }
+    </script>
+    
+    <!-- Load AppKit Setup (Official Reown AppKit UI with wallet list, search, email/Google) -->
     <script type="module" src="main.js"></script>
-    <script type="module" src="app.js"></script>
+    
+    <!-- Load ethers.js for contract interactions -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" 
+            onload="console.log('✅ ethers.js loaded'); window.ethersLoaded = true;"
+            onerror="console.error('❌ Failed to load ethers.js')"></script>
+    
+    <!-- Load app-simple.js after a short delay to ensure AppKit is ready -->
+    <script>
+        setTimeout(function() {
+            const appScript = document.createElement('script')
+            appScript.src = 'app-simple.js'
+            appScript.onload = function() {
+                console.log('✅ app-simple.js loaded')
+            }
+            appScript.onerror = function() {
+                console.error('❌ Failed to load app-simple.js')
+            }
+            document.body.appendChild(appScript)
+        }, 2000) // Wait 2 seconds for AppKit to initialize
+    </script>
 </body>
 </html>
