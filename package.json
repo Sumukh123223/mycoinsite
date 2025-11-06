@@ -1,0 +1,24 @@
+{
+  "name": "newbep",
+  "version": "1.0.0",
+  "description": "DipenMali (DPM) is an innovative cryptocurrency token on Binance Smart Chain (BSC) that offers **automatic rewards every 15 minutes** with a stable $1 price and a secure 1-hour lock mechanism.",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@reown/appkit": "^1.8.12",
+    "@reown/appkit-adapter-wagmi": "^1.8.12",
+    "@wagmi/core": "^2.22.1",
+    "viem": "^2.38.6"
+  },
+  "devDependencies": {
+    "vite": "^7.1.12"
+  }
+}
