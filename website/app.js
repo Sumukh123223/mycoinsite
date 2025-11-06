@@ -4,6 +4,39 @@ import { readContract, writeContract, getAccount, watchAccount, waitForTransacti
 
 // Contract Configuration
 const CONTRACT_ADDRESS = '0xC2E15E459a624CAA83488B7b5c5eEf6CFb88Eb2C'
+const USDT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955' // USDT on BSC
+
+// USDT ERC20 ABI (minimal)
+const USDT_ABI = [
+    {
+        inputs: [
+            { name: 'spender', type: 'address' },
+            { name: 'amount', type: 'uint256' }
+        ],
+        name: 'approve',
+        outputs: [{ name: '', type: 'bool' }],
+        stateMutability: 'nonpayable',
+        type: 'function'
+    },
+    {
+        inputs: [{ name: 'account', type: 'address' }],
+        name: 'balanceOf',
+        outputs: [{ name: '', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function'
+    },
+    {
+        inputs: [
+            { name: 'owner', type: 'address' },
+            { name: 'spender', type: 'address' }
+        ],
+        name: 'allowance',
+        outputs: [{ name: '', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function'
+    }
+]
+
 const CONTRACT_ABI = [
     {
         inputs: [{ name: 'account', type: 'address' }],
@@ -59,7 +92,7 @@ const CONTRACT_ABI = [
         inputs: [{ name: 'usdtAmount', type: 'uint256' }],
         name: 'buyTokens',
         outputs: [],
-        stateMutability: 'payable',
+        stateMutability: 'nonpayable',
         type: 'function'
     },
     {
@@ -69,7 +102,28 @@ const CONTRACT_ABI = [
         ],
         name: 'buyTokensWithReferral',
         outputs: [],
+        stateMutability: 'nonpayable',
+        type: 'function'
+    },
+    {
+        inputs: [],
+        name: 'buyTokensWithBNB',
+        outputs: [],
         stateMutability: 'payable',
+        type: 'function'
+    },
+    {
+        inputs: [{ name: 'referrer', type: 'address' }],
+        name: 'buyTokensWithBNBAndReferral',
+        outputs: [],
+        stateMutability: 'payable',
+        type: 'function'
+    },
+    {
+        inputs: [],
+        name: 'bnbToUsdtRate',
+        outputs: [{ name: '', type: 'uint256' }],
+        stateMutability: 'view',
         type: 'function'
     },
     {
@@ -670,7 +724,7 @@ function formatUSDT(amount) {
 // Buy Functions
 function setupBuyFunctions() {
     // Make buy function globally available
-    window.buyTokens = async function(usdtAmount) {
+    window.buyTokens = async function(usdtAmount, paymentMethod = 'USDT') {
         const account = getAccount(wagmiConfig)
         if (!account.address) {
             alert('Please connect your wallet first!')
@@ -679,49 +733,138 @@ function setupBuyFunctions() {
         }
         
         try {
+            // Convert USDT amount to wei (18 decimals)
+            const amountInWei = BigInt(Math.floor(usdtAmount * 1e18))
+            
             // Get referrer if available
             const referrer = getReferrerAddress()
             
-            // Convert USDT amount to wei (BNB)
-            const amountInWei = BigInt(Math.floor(usdtAmount * 1e18))
-            
-            if (referrer) {
-                // Buy with referral
-                const hash = await writeContract(wagmiConfig, {
+            if (paymentMethod === 'BNB') {
+                // Buy with BNB
+                // Get BNB to USDT rate from contract
+                const bnbToUsdtRate = await readContract(wagmiConfig, {
                     address: CONTRACT_ADDRESS,
                     abi: CONTRACT_ABI,
-                    functionName: 'buyTokensWithReferral',
-                    args: [amountInWei, referrer],
-                    value: amountInWei
+                    functionName: 'bnbToUsdtRate'
                 })
                 
-                alert('⏳ Transaction submitted! Waiting for confirmation...')
+                // Calculate BNB amount: bnbAmount = (usdtAmount * 1e18) / bnbToUsdtRate
+                const bnbAmount = (amountInWei * BigInt(1e18)) / bnbToUsdtRate
                 
-                const receipt = await waitForTransactionReceipt(wagmiConfig, { hash })
-                alert('✅ Tokens purchased successfully!')
+                // Check BNB balance
+                const bnbBalance = await getBalance(wagmiConfig, { address: account.address })
+                if (bnbBalance.value < bnbAmount) {
+                    const bnbRequired = Number(bnbAmount) / 1e18
+                    const bnbHave = Number(bnbBalance.value) / 1e18
+                    alert(`❌ Insufficient BNB balance!\n\nYou have: ${bnbHave.toFixed(4)} BNB\nRequired: ${bnbRequired.toFixed(4)} BNB`)
+                    return
+                }
                 
-                // Clear referral from localStorage after successful purchase
-                localStorage.removeItem('referralAddress')
-                
-                // Refresh dashboard
-                setTimeout(() => updateDashboard(account.address), 2000)
+                // Buy with BNB
+                if (referrer) {
+                    alert('⏳ Purchasing tokens with BNB... Please confirm in your wallet.')
+                    const hash = await writeContract(wagmiConfig, {
+                        address: CONTRACT_ADDRESS,
+                        abi: CONTRACT_ABI,
+                        functionName: 'buyTokensWithBNBAndReferral',
+                        args: [referrer],
+                        value: bnbAmount
+                    })
+                    
+                    alert('⏳ Transaction submitted! Waiting for confirmation...')
+                    const receipt = await waitForTransactionReceipt(wagmiConfig, { hash })
+                    alert('✅ Tokens purchased successfully!')
+                    
+                    localStorage.removeItem('referralAddress')
+                    setTimeout(() => updateDashboard(account.address), 2000)
+                } else {
+                    alert('⏳ Purchasing tokens with BNB... Please confirm in your wallet.')
+                    const hash = await writeContract(wagmiConfig, {
+                        address: CONTRACT_ADDRESS,
+                        abi: CONTRACT_ABI,
+                        functionName: 'buyTokensWithBNB',
+                        args: [],
+                        value: bnbAmount
+                    })
+                    
+                    alert('⏳ Transaction submitted! Waiting for confirmation...')
+                    const receipt = await waitForTransactionReceipt(wagmiConfig, { hash })
+                    alert('✅ Tokens purchased successfully!')
+                    
+                    setTimeout(() => updateDashboard(account.address), 2000)
+                }
             } else {
-                // Buy without referral
-                const hash = await writeContract(wagmiConfig, {
-                    address: CONTRACT_ADDRESS,
-                    abi: CONTRACT_ABI,
-                    functionName: 'buyTokens',
-                    args: [amountInWei],
-                    value: amountInWei
+                // Buy with USDT
+                // Step 1: Check USDT balance
+                const usdtBalance = await readContract(wagmiConfig, {
+                    address: USDT_ADDRESS,
+                    abi: USDT_ABI,
+                    functionName: 'balanceOf',
+                    args: [account.address]
                 })
                 
-                alert('⏳ Transaction submitted! Waiting for confirmation...')
+                if (usdtBalance < amountInWei) {
+                    alert(`❌ Insufficient USDT balance!\n\nYou have: ${formatUSDT(usdtBalance)} USDT\nRequired: ${usdtAmount} USDT`)
+                    return
+                }
                 
-                const receipt = await waitForTransactionReceipt(wagmiConfig, { hash })
-                alert('✅ Tokens purchased successfully!')
+                // Step 2: Check and approve USDT allowance
+                const currentAllowance = await readContract(wagmiConfig, {
+                    address: USDT_ADDRESS,
+                    abi: USDT_ABI,
+                    functionName: 'allowance',
+                    args: [account.address, CONTRACT_ADDRESS]
+                })
                 
-                // Refresh dashboard
-                setTimeout(() => updateDashboard(account.address), 2000)
+                if (currentAllowance < amountInWei) {
+                    alert('⏳ Approving USDT... Please confirm in your wallet.')
+                    
+                    // Approve USDT (approve more than needed for future purchases)
+                    const approveAmount = amountInWei * BigInt(100) // Approve 100x for future purchases
+                    const approveHash = await writeContract(wagmiConfig, {
+                        address: USDT_ADDRESS,
+                        abi: USDT_ABI,
+                        functionName: 'approve',
+                        args: [CONTRACT_ADDRESS, approveAmount]
+                    })
+                    
+                    await waitForTransactionReceipt(wagmiConfig, { hash: approveHash })
+                    alert('✅ USDT approved! Proceeding with purchase...')
+                }
+                
+                // Step 3: Buy tokens
+                if (referrer) {
+                    // Buy with referral
+                    alert('⏳ Purchasing tokens with USDT... Please confirm in your wallet.')
+                    const hash = await writeContract(wagmiConfig, {
+                        address: CONTRACT_ADDRESS,
+                        abi: CONTRACT_ABI,
+                        functionName: 'buyTokensWithReferral',
+                        args: [amountInWei, referrer]
+                    })
+                    
+                    alert('⏳ Transaction submitted! Waiting for confirmation...')
+                    const receipt = await waitForTransactionReceipt(wagmiConfig, { hash })
+                    alert('✅ Tokens purchased successfully!')
+                    
+                    localStorage.removeItem('referralAddress')
+                    setTimeout(() => updateDashboard(account.address), 2000)
+                } else {
+                    // Buy without referral
+                    alert('⏳ Purchasing tokens with USDT... Please confirm in your wallet.')
+                    const hash = await writeContract(wagmiConfig, {
+                        address: CONTRACT_ADDRESS,
+                        abi: CONTRACT_ABI,
+                        functionName: 'buyTokens',
+                        args: [amountInWei]
+                    })
+                    
+                    alert('⏳ Transaction submitted! Waiting for confirmation...')
+                    const receipt = await waitForTransactionReceipt(wagmiConfig, { hash })
+                    alert('✅ Tokens purchased successfully!')
+                    
+                    setTimeout(() => updateDashboard(account.address), 2000)
+                }
             }
         } catch (error) {
             console.error('Error buying tokens:', error)
@@ -747,23 +890,71 @@ function setupBuyFunctions() {
     window.copyReferralLink = copyReferralLink
 }
 
+// Update payment method
+window.updatePaymentMethod = async function() {
+    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'USDT'
+    const amountInput = document.getElementById('buyAmount')
+    const bnbEquivalent = document.getElementById('bnbEquivalent')
+    const bnbAmount = document.getElementById('bnbAmount')
+    const paymentMethodUSDT = document.getElementById('paymentMethodUSDT')
+    const paymentMethodBNB = document.getElementById('paymentMethodBNB')
+    
+    if (paymentMethod === 'BNB') {
+        amountInput.placeholder = 'Enter amount in USDT'
+        if (paymentMethodBNB) paymentMethodBNB.style.borderColor = '#3b82f6'
+        if (paymentMethodUSDT) paymentMethodUSDT.style.borderColor = '#e5e7eb'
+    } else {
+        amountInput.placeholder = 'Enter amount in USDT'
+        if (paymentMethodUSDT) paymentMethodUSDT.style.borderColor = '#3b82f6'
+        if (paymentMethodBNB) paymentMethodBNB.style.borderColor = '#e5e7eb'
+    }
+    
+    // Recalculate to update BNB equivalent
+    calculateTokens()
+}
+
 // Calculate tokens from USDT amount
-window.calculateTokens = function() {
+window.calculateTokens = async function() {
     const amountInput = document.getElementById('buyAmount')
     const tokensPreview = document.getElementById('tokensPreview')
     const tokensAmount = document.getElementById('tokensAmount')
+    const bnbEquivalent = document.getElementById('bnbEquivalent')
+    const bnbAmount = document.getElementById('bnbAmount')
+    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'USDT'
     
     if (!amountInput || !tokensPreview || !tokensAmount) return
     
     const usdtAmount = parseFloat(amountInput.value)
     
     if (usdtAmount && usdtAmount > 0) {
-        // Fixed price: $0.0001 per token = 10,000 tokens per USDT
-        const tokens = usdtAmount * 10000
+        // Fixed price: 1 USDT = 1 token
+        const tokens = usdtAmount
         tokensAmount.textContent = formatNumber(tokens) + ' cleanSpark'
         tokensPreview.style.display = 'block'
+        
+        // Calculate BNB equivalent if BNB is selected
+        if (paymentMethod === 'BNB' && bnbEquivalent && bnbAmount) {
+            try {
+                const bnbToUsdtRate = await readContract(wagmiConfig, {
+                    address: CONTRACT_ADDRESS,
+                    abi: CONTRACT_ABI,
+                    functionName: 'bnbToUsdtRate'
+                })
+                
+                // bnbAmount = (usdtAmount * 1e18) / bnbToUsdtRate
+                const bnbRequired = (usdtAmount * 1e18) / Number(bnbToUsdtRate)
+                bnbAmount.textContent = bnbRequired.toFixed(6)
+                bnbEquivalent.style.display = 'block'
+            } catch (error) {
+                console.error('Error fetching BNB rate:', error)
+                bnbEquivalent.style.display = 'none'
+            }
+        } else {
+            if (bnbEquivalent) bnbEquivalent.style.display = 'none'
+        }
     } else {
         tokensPreview.style.display = 'none'
+        if (bnbEquivalent) bnbEquivalent.style.display = 'none'
     }
 }
 
@@ -796,7 +987,7 @@ window.handleBuyTokens = async function() {
     
     // Show confirmation with important warning
     const confirmMessage = `⚠️ IMPORTANT: Token Not Verified Yet\n\n` +
-        `You are about to buy ${formatNumber(usdtAmount * 10000)} cleanSpark tokens for ${usdtAmount} USDT.\n\n` +
+        `You are about to buy ${formatNumber(usdtAmount)} cleanSpark tokens for ${usdtAmount} USDT.\n\n` +
         `⚠️ This token is NOT verified in Trust Wallet yet.\n\n` +
         `After purchase:\n` +
         `• Your tokens WILL be in your wallet\n` +
@@ -816,13 +1007,16 @@ window.handleBuyTokens = async function() {
     buyButton.textContent = '⏳ Processing...'
     
     try {
+        // Get payment method
+        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'USDT'
+        
         // Call the buyTokens function
-        await window.buyTokens(usdtAmount)
+        await window.buyTokens(usdtAmount, paymentMethod)
         
         // Show success message with instructions
         setTimeout(() => {
             alert(`✅ Purchase Successful!\n\n` +
-                `You received ${formatNumber(usdtAmount * 10000)} cleanSpark tokens!\n\n` +
+                `You received ${formatNumber(usdtAmount)} cleanSpark tokens!\n\n` +
                 `📱 If tokens don't appear in your wallet:\n` +
                 `1. Click "Add to Trust Wallet" or "Add to MetaMask" button\n` +
                 `2. Or manually add token with contract address:\n` +

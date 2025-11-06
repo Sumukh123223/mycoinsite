@@ -269,24 +269,44 @@
                     <!-- Price Info -->
                     <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center;">
                         <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">Fixed Price</p>
-                        <p style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">$0.0001 per token</p>
-                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">1 USDT = 10,000 tokens</p>
+                        <p style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">$1.00 per token</p>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">1 USDT = 1 token</p>
+                    </div>
+                    
+                    <!-- Payment Method Selection -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">
+                            Payment Method:
+                        </label>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                            <label id="paymentMethodUSDT" style="flex: 1; padding: 0.75rem; border: 2px solid #3b82f6; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.3s; background: #3b82f610;">
+                                <input type="radio" name="paymentMethod" value="USDT" checked onchange="updatePaymentMethod()" style="margin-right: 0.5rem;">
+                                💵 USDT
+                            </label>
+                            <label id="paymentMethodBNB" style="flex: 1; padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.3s;">
+                                <input type="radio" name="paymentMethod" value="BNB" onchange="updatePaymentMethod()" style="margin-right: 0.5rem;">
+                                ⚡ BNB
+                            </label>
+                        </div>
                     </div>
                     
                     <!-- Amount Input -->
                     <div style="margin-bottom: 1.5rem;">
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">
-                            Amount (USDT)
+                            Amount (USDT):
                         </label>
                         <input 
                             type="number" 
                             id="buyAmount" 
-                            placeholder="Enter amount (e.g., 100)"
+                            placeholder="Enter amount in USDT (e.g., 100)"
                             min="0.01"
                             step="0.01"
                             style="width: 100%; padding: 1rem; border: 2px solid var(--border-light); border-radius: 12px; font-size: 1.1rem; background: var(--bg-primary); color: var(--text-primary);"
                             oninput="calculateTokens()"
                         >
+                        <div id="bnbEquivalent" style="display: none; padding: 0.75rem; background: #f3f4f6; border-radius: 8px; margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">
+                            <strong>BNB Required:</strong> <span id="bnbAmount">0</span> BNB
+                        </div>
                     </div>
                     
                     <!-- Tokens to Receive -->

