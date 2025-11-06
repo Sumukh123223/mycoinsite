@@ -1180,17 +1180,29 @@ function setupMetaMaskBrowserFeatures() {
 window.updateDashboard = updateDashboard
 window.openWalletModal = () => {
     try {
+        // Try main.js modal first
         if (modal && typeof modal.open === 'function') {
             modal.open()
-        } else {
-            console.error('Modal not initialized')
-            // Fallback: try to use window.openConnectModal if available
-            if (window.openConnectModal) {
+            return
+        }
+        
+        // Fallback: try to use window.openConnectModal if available
+        if (window.openConnectModal && typeof window.openConnectModal === 'function') {
+            window.openConnectModal()
+            return
+        }
+        
+        // Last resort: wait and retry
+        console.error('Modal not initialized, waiting...')
+        setTimeout(() => {
+            if (modal && typeof modal.open === 'function') {
+                modal.open()
+            } else if (window.openConnectModal && typeof window.openConnectModal === 'function') {
                 window.openConnectModal()
             } else {
                 alert('Wallet connection not ready. Please refresh the page.')
             }
-        }
+        }, 500)
     } catch (error) {
         console.error('Error opening wallet modal:', error)
         alert('Error connecting wallet. Please refresh the page.')

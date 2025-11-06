@@ -40,7 +40,18 @@ export const wagmiConfig = wagmiAdapter.wagmiConfig
 // Make modal globally available for HTML
 window.openConnectModal = () => {
     try {
-        modal.open()
+        if (modal && typeof modal.open === 'function') {
+            modal.open()
+        } else {
+            console.error('Modal not ready, waiting...')
+            setTimeout(() => {
+                if (modal && typeof modal.open === 'function') {
+                    modal.open()
+                } else {
+                    alert('Please wait for wallet connection to initialize...')
+                }
+            }, 500)
+        }
     } catch (error) {
         console.error('Error opening modal:', error)
         alert('Error connecting wallet. Please refresh the page.')
@@ -49,7 +60,9 @@ window.openConnectModal = () => {
 
 window.openNetworkModal = () => {
     try {
-        modal.open({ view: 'Networks' })
+        if (modal && typeof modal.open === 'function') {
+            modal.open({ view: 'Networks' })
+        }
     } catch (error) {
         console.error('Error opening network modal:', error)
     }
