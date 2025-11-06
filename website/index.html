@@ -631,131 +631,39 @@
     
     <!-- Initialize wallet connect function immediately (before modules load) -->
     <script>
-        // Track if modal is initialized
-        window.walletModalReady = false
-        window.walletModalInitializing = false
-        
         // Define placeholder function immediately so onclick handlers work
+        // This will be replaced by the real function from main.js once modules load
         window.openWalletModal = function() {
-            console.log('🔵 openWalletModal called')
+            console.log('🔵 openWalletModal called (placeholder)')
             
             // Check if we're on GitHub Pages with raw files (modules won't load)
             if (window.location.hostname.includes('github.io') && !window.location.pathname.includes('/dist/')) {
-                alert('⚠️ Site needs to be built!\n\nGitHub Pages is serving raw files.\n\nQuick Fix:\n1. Go to: https://vercel.com\n2. Import this repository\n3. Root Directory: website\n4. Deploy!\n\nOr enable GitHub Actions in repository settings.')
+                alert('⚠️ Site needs to be built!\n\nGitHub Pages is serving raw source files.\n\nThe site must be built before it can work.\n\n🔧 Quick Fix (2 minutes):\n1. Go to: https://vercel.com\n2. Sign in with GitHub\n3. Import: Sumukh123223/mycoinsite\n4. Root Directory: website\n5. Click "Deploy"\n6. Works immediately!\n\nOr enable GitHub Actions in repository settings.')
                 return
             }
             
-            // Try immediate call if available
-            if (window.openConnectModal && typeof window.openConnectModal === 'function' && window.walletModalReady) {
-                console.log('✅ Using openConnectModal')
-                try {
+            // Wait a moment for modules to load, then try
+            setTimeout(function() {
+                if (window.openConnectModal && typeof window.openConnectModal === 'function') {
+                    console.log('✅ Calling openConnectModal')
                     window.openConnectModal()
-                    return
-                } catch (e) {
-                    console.error('Error calling openConnectModal:', e)
-                }
-            }
-            
-            if (window.modal && typeof window.modal.open === 'function' && window.walletModalReady) {
-                console.log('✅ Using window.modal.open')
-                try {
+                } else if (window.modal && typeof window.modal.open === 'function') {
+                    console.log('✅ Calling modal.open')
                     window.modal.open()
-                    return
-                } catch (e) {
-                    console.error('Error calling modal.open:', e)
+                } else {
+                    console.error('❌ Modal not available')
+                    alert('❌ Wallet connection not ready.\n\nThis site needs to be built first.\n\nPlease use Vercel or enable GitHub Actions.')
                 }
-            }
-            
-            // Wait for modal to initialize
-            console.log('⏳ Modal not ready, waiting...')
-            let retries = 0
-            const maxRetries = 10 // Wait up to 5 seconds
-            
-            const checkModal = setInterval(function() {
-                retries++
-                
-                if (window.openConnectModal && typeof window.openConnectModal === 'function' && window.walletModalReady) {
-                    console.log('✅ Modal ready! Opening...')
-                    clearInterval(checkModal)
-                    try {
-                        window.openConnectModal()
-                    } catch (e) {
-                        console.error('Error opening modal:', e)
-                        alert('Error opening wallet modal: ' + e.message)
-                    }
-                    return
-                }
-                
-                if (window.modal && typeof window.modal.open === 'function' && window.walletModalReady) {
-                    console.log('✅ Modal ready! Opening...')
-                    clearInterval(checkModal)
-                    try {
-                        window.modal.open()
-                    } catch (e) {
-                        console.error('Error opening modal:', e)
-                        alert('Error opening wallet modal: ' + e.message)
-                    }
-                    return
-                }
-                
-                if (retries >= maxRetries) {
-                    clearInterval(checkModal)
-                    console.error('❌ Modal not ready after', maxRetries, 'retries')
-                    
-                    // Check for module loading errors
-                    const hasModuleError = document.querySelector('script[type="module"]') && 
-                                         !window.walletModalReady && 
-                                         !window.modal
-                    
-                    if (hasModuleError) {
-                        alert('❌ Wallet connection failed!\n\nModules are not loading. This site needs to be built.\n\n🔧 Quick Fix:\n1. Use Vercel: https://vercel.com\n2. Import repository\n3. Root: website\n4. Deploy!\n\nOr check browser console (F12) for errors.')
-                    } else {
-                        alert('❌ Wallet connection not ready.\n\nPlease:\n1. Check browser console (F12)\n2. Refresh the page\n3. Try a different browser')
-                    }
-                }
-            }, 500)
+            }, 100)
         }
         
         window.disconnectWallet = function() {
             if (window.handleDisconnect && typeof window.handleDisconnect === 'function') {
                 window.handleDisconnect()
             } else {
-                alert('Disconnect function is loading. Please refresh the page.')
+                alert('Please refresh the page to disconnect.')
             }
         }
-        
-        // Check if modules loaded successfully
-        window.addEventListener('load', function() {
-            console.log('📄 Page loaded, checking wallet modal...')
-            
-            // Check every 500ms for up to 10 seconds
-            let loadCheckCount = 0
-            const maxLoadChecks = 20
-            
-            const checkLoad = setInterval(function() {
-                loadCheckCount++
-                console.log('Loading check:', loadCheckCount, 'of', maxLoadChecks)
-                
-                if (window.modal || (window.openConnectModal && window.walletModalReady)) {
-                    clearInterval(checkLoad)
-                    window.walletModalReady = true
-                    console.log('✅ Wallet modal ready!')
-                } else if (loadCheckCount >= maxLoadChecks) {
-                    clearInterval(checkLoad)
-                    console.error('❌ Wallet modal did not load after page load')
-                    console.error('This might indicate a module loading error')
-                    console.error('Please check browser console for import errors')
-                }
-            }, 500)
-        })
-        
-        // Also check after a delay for slow connections
-        setTimeout(function() {
-            if (!window.walletModalReady && (!window.modal && !window.openConnectModal)) {
-                console.warn('⚠️ Wallet modal still not ready after 5 seconds')
-                console.warn('Check if there are import errors in the console')
-            }
-        }, 5000)
         
         console.log('✅ Wallet connect placeholder functions initialized')
     </script>
