@@ -3,7 +3,7 @@ import { modal, wagmiConfig } from './main.js'
 import { readContract, writeContract, getAccount, watchAccount, waitForTransactionReceipt } from '@wagmi/core'
 
 // Contract Configuration
-const CONTRACT_ADDRESS = '0x06c834a00d99eaa6ab2afd1ba753546a7f3f1ed4'
+const CONTRACT_ADDRESS = '0xC2E15E459a624CAA83488B7b5c5eEf6CFb88Eb2C'
 const CONTRACT_ABI = [
     {
         inputs: [{ name: 'account', type: 'address' }],
