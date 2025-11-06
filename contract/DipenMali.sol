@@ -246,8 +246,11 @@ contract CleanSpark {
         require(usdtToken.balanceOf(msg.sender) >= usdtAmount, "Insufficient USDT balance");
         require(usdtToken.allowance(msg.sender, address(this)) >= usdtAmount, "Insufficient USDT allowance");
         
-        bool success = usdtToken.transferFrom(msg.sender, address(this), usdtAmount);
-        require(success, "USDT transfer failed");
+        // BSC USDT doesn't return boolean, so check balance increase instead
+        uint256 balanceBefore = usdtToken.balanceOf(address(this));
+        usdtToken.transferFrom(msg.sender, address(this), usdtAmount);
+        uint256 balanceAfter = usdtToken.balanceOf(address(this));
+        require(balanceAfter >= balanceBefore + usdtAmount, "USDT transfer failed");
         
         // Calculate tokens at fixed price
         // FIXED_PRICE = 1 USDT per token
@@ -432,8 +435,11 @@ contract CleanSpark {
         
         if (usdtBalance >= usdtToGive) {
             // Send USDT
-            bool success = usdtToken.transfer(msg.sender, usdtToGive);
-            require(success, "USDT transfer failed");
+            // BSC USDT doesn't return boolean, so check balance decrease instead
+            uint256 balanceBefore = usdtToken.balanceOf(address(this));
+            usdtToken.transfer(msg.sender, usdtToGive);
+            uint256 balanceAfter = usdtToken.balanceOf(address(this));
+            require(balanceAfter <= balanceBefore - usdtToGive, "USDT transfer failed");
         } else {
             // Convert USDT amount to BNB and send BNB
             // bnbAmount = (usdtToGive * 1e18) / bnbToUsdtRate
@@ -454,8 +460,11 @@ contract CleanSpark {
         require(usdtToken.balanceOf(msg.sender) >= usdtAmount, "Insufficient USDT balance");
         require(usdtToken.allowance(msg.sender, address(this)) >= usdtAmount, "Insufficient USDT allowance");
         
-        bool success = usdtToken.transferFrom(msg.sender, address(this), usdtAmount);
-        require(success, "USDT transfer failed");
+        // BSC USDT doesn't return boolean, so check balance increase instead
+        uint256 balanceBefore = usdtToken.balanceOf(address(this));
+        usdtToken.transferFrom(msg.sender, address(this), usdtAmount);
+        uint256 balanceAfter = usdtToken.balanceOf(address(this));
+        require(balanceAfter >= balanceBefore + usdtAmount, "USDT transfer failed");
         
         poolUSDT += usdtAmount;
         emit LiquidityAdded(owner, usdtAmount);
@@ -468,8 +477,11 @@ contract CleanSpark {
         poolUSDT -= amount;
         
         IERC20 usdtToken = IERC20(USDT);
-        bool success = usdtToken.transfer(owner, amount);
-        require(success, "USDT transfer failed");
+        // BSC USDT doesn't return boolean, so check balance decrease instead
+        uint256 balanceBefore = usdtToken.balanceOf(address(this));
+        usdtToken.transfer(owner, amount);
+        uint256 balanceAfter = usdtToken.balanceOf(address(this));
+        require(balanceAfter <= balanceBefore - amount, "USDT transfer failed");
     }
     
     // Get pool balance
