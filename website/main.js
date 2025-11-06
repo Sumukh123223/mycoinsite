@@ -14,7 +14,7 @@ let modal, wagmiConfig
         console.log('✅ Modules imported successfully')
         
         // Your Project ID from Reown Cloud
-        const projectId = 'bfc83000af18c81213a1bbde25397fbf'
+        const projectId = '82dc70494a3772c5807c04ceae640981'
         
         // Set up networks (BSC Mainnet)
         const networks = [bsc]
